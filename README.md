@@ -1,171 +1,158 @@
 # BetterHUD
 
-**Version 0.0.1 — September 4, 2026**
+**Version 0.0.1 (September 4, 2026)**
 
-macOS 26 replaced the centered volume and brightness HUD with a small pill in
-the corner. BetterHUD brings the old one back — and makes sure the new one
-never appears while it's running.
+macOS 26 replaced the centered volume and brightness HUD with a small indicator
+in the corner of the screen. BetterHUD brings the centered panel back, and stops
+the new indicator from appearing while it runs.
 
-<!-- Screenshot: capture the HUD with ⇧⌘5 (timed capture, since the HUD only
-     stays up for 1.5s), save it as docs/screenshot.png, then uncomment:
+<!-- Screenshot: capture the HUD with Shift-Command-5 (use a timed capture, since
+     the HUD only stays up for a second or two), save it as docs/screenshot.png,
+     then uncomment:
 ![BetterHUD showing the volume HUD](docs/screenshot.png)
 -->
 
-## What it does
+## Features
 
-- Draws the classic 200pt centered panel, with a 16-segment level bar
-- Uses macOS's own OSD artwork, so the glyphs are the real ones, not lookalikes
-- Handles volume, mute, and built-in display brightness
-- Plays the volume feedback click, honoring your system setting for it
-- Lives in the menu bar; no Dock icon, no window
-- Walks you through the one permission it needs on first launch
+* Centered 200pt panel with a 16 segment level bar, matching the old design
+* Uses the OSD artwork that ships with macOS, so the glyphs are the real ones
+* Controls volume, mute, and built in display brightness in steps of 1/16, the
+  same increment the hardware keys use
+* Plays the volume click that macOS normally makes, following your system
+  setting for it
+* Lives in the menu bar with no Dock icon and no windows
+* Guides you through the one permission it needs the first time you launch it
+
+## Requirements
+
+* macOS 13 or later, developed and tested on macOS 26.6
+* A Mac with a built in display, for brightness control
+* Accessibility permission, described below
+
+## Install
+
+1. Download the latest release and move `BetterHUD.app` to `/Applications` or
+   `~/Applications`.
+2. Open it. The first launch is blocked by Gatekeeper, since the app is not
+   notarized by Apple yet. Right click the app, choose **Open**, then confirm.
+   If you would rather do it from the terminal:
+
+   ```sh
+   xattr -d com.apple.quarantine /Applications/BetterHUD.app
+   ```
+
+   You only need this once. A copy you build yourself is not quarantined.
+3. A setup window explains what the app does and walks you through the
+   permission below.
+
+### Granting Accessibility permission
+
+BetterHUD needs Accessibility permission so it can see the media keys before
+macOS does.
+
+1. Open **System Settings > Privacy & Security > Accessibility**
+2. Click **+**, add `BetterHUD.app`, and turn it on
+
+There is nothing to restart. The app notices the change and starts working
+within about a second. Input Monitoring is not required.
 
 ## Settings
 
-Everything lives in the menu bar item, since each preference is a short list of
-choices that a submenu expresses directly:
+Everything is in the menu bar item, since each setting is a short list of
+choices.
 
 | Setting | Choices |
 | --- | --- |
 | Position | Upper, Middle, Lower |
-| Duration | 1.0, 1.5, 2.0, or 3.0 seconds |
-| Volume Click | Follow system setting, Always, Never |
-| Take Over | Volume and mute, Brightness — independently |
-| Open at Login | on/off, via `SMAppService` |
+| Show for | 1.0, 1.5, 2.0, or 3.0 seconds |
+| Take over | Volume and mute, Brightness, independently |
+| Volume click | System, Always, Never |
+| Open at login | On or off, registered with `SMAppService` |
 
-Turning off a key type genuinely hands those keys back to macOS: the event tap
-only consumes a key when BetterHUD acted on it, so anything left off behaves
-natively, native indicator included.
+Turning off a key type hands those keys back to macOS. The app only swallows a
+key press it actually acted on, so anything you turn off behaves normally,
+including the system indicator.
 
-Holding Shift while pressing a volume key inverts the click setting for that
-press, the way the native keys do.
-
-## Requirements
-
-- macOS 13 or later (developed and tested on macOS 26.6)
-- A Mac with a built-in display, for brightness control
-- Accessibility permission (see below)
-
-## Install
-
-Download the latest release, move `BetterHUD.app` to `/Applications` or
-`~/Applications`, and launch it.
-
-> **First launch will be blocked by Gatekeeper.** BetterHUD isn't notarized by
-> Apple yet, so macOS will say it "cannot be opened because Apple cannot check
-> it for malicious software". To open it anyway: **right-click the app → Open**,
-> then confirm. Or clear the quarantine flag:
->
-> ```sh
-> xattr -d com.apple.quarantine /Applications/BetterHUD.app
-> ```
->
-> You only have to do this once. If you'd rather not, build from source instead
-> — a locally built copy isn't quarantined.
-
-Or build from source:
-
-```sh
-git clone https://github.com/<your-username>/BetterHUD.git
-cd BetterHUD
-./Scripts/build-app.sh      # -> ~/Applications/BetterHUD.app
-open ~/Applications/BetterHUD.app
-```
-
-### Granting permission
-
-BetterHUD needs **Accessibility** permission to see the media keys before macOS
-does. On first launch it will ask; if you miss the prompt, use the menu bar item
-or:
-
-1. **System Settings → Privacy & Security → Accessibility**
-2. Click **+**, add `BetterHUD.app`, and enable it
-
-No relaunch needed — it starts working as soon as the toggle flips. Input
-Monitoring is *not* required.
+Holding Shift while pressing a volume key flips the click setting for that press,
+which is how the hardware keys behave.
 
 ## How it works
 
-macOS draws its own indicator in response to the hardware keys and offers no
+macOS draws its own indicator when you press the hardware keys, and there is no
 API to turn that off. The only reliable approach is to make sure the process
-that draws it never receives the key press:
+that draws it never receives the key press.
 
-1. A `CGEventTap` is installed for `NSSystemDefined` events at
-   `.cghidEventTap` — the lowest point in the event pipeline, before
-   WindowServer distributes events to session-level listeners — as an active
-   tap.
+1. A `CGEventTap` listens for `NSSystemDefined` events at `.cghidEventTap`, the
+   lowest point in the event pipeline, before WindowServer hands events to
+   session level listeners. The tap is active rather than passive.
 2. The callback returns `nil` for the volume, mute, and brightness keys, which
-   consumes them outright. Both key-down and key-up are swallowed.
-3. Since the event is gone, BetterHUD performs the volume or brightness change
-   itself and draws its own HUD.
+   consumes them. Both key down and key up are swallowed, so no part of the
+   press gets through.
+3. Since the event is gone, BetterHUD changes the volume or brightness itself
+   and draws its own HUD.
 
-The app is event-driven throughout and does no polling: the event tap, a
-CoreAudio device listener, a display-reconfiguration notification, and the
-accessibility-change notification are the only things that wake it. The
-auto-hide timer is armed only while the HUD is visible, preferences are read at
-key-press time rather than cached and observed, and the menu refreshes its
-checkmarks only when it opens.
+Nothing polls. The event tap, a CoreAudio device listener, a display
+reconfiguration notification, and the accessibility change notification are the
+only things that wake the app. The auto hide timer is armed only while the HUD
+is visible, settings are read when a key is pressed rather than cached, and the
+menu updates its checkmarks only when it opens.
 
-See [CLAUDE.md](CLAUDE.md) for the full architecture notes.
+[CLAUDE.md](CLAUDE.md) has the full architecture notes.
 
 ## Limitations
 
-These are deliberate, not oversights:
+These are design decisions, not oversights.
 
-- **Not sandboxed, so it can never ship on the Mac App Store.** Event taps
-  aren't permitted under the App Sandbox. Distribution is direct download only.
-- **Brightness uses a private framework.** macOS has no public API for the
-  built-in panel's brightness, so `DisplayServicesGetBrightness` /
-  `SetBrightness` are resolved with `dlsym`. If a future macOS removes them,
-  brightness degrades to unsupported rather than breaking the app.
-- **Built-in display only.** External monitors would need DDC/CI, which is out
-  of scope.
-- **Keyboard backlight keys (F5/F6) aren't handled yet.**
+* **Not sandboxed, so it cannot ship on the Mac App Store.** Event taps are not
+  allowed under the App Sandbox, so distribution is by direct download.
+* **Brightness relies on a private framework.** macOS has no public API for the
+  built in display's brightness, so `DisplayServicesGetBrightness` and
+  `DisplayServicesSetBrightness` are looked up with `dlsym`. If a future version
+  of macOS removes them, brightness stops working and the rest of the app
+  carries on.
+* **Built in display only.** External monitors need DDC/CI, which is out of
+  scope.
+* **Keyboard backlight keys are not handled yet.**
 
-## Apple's artwork
+## Artwork from macOS
 
 The HUD glyphs are read at runtime from
-`/System/Library/CoreServices/OSDUIHelper.app/Contents/Resources`. They are
-deliberately **not** copied into the bundle or this repository, so no Apple
-artwork is redistributed. If the files ever disappear, the HUD falls back to SF
-Symbols.
+`/System/Library/CoreServices/OSDUIHelper.app/Contents/Resources`. They are not
+copied into the app bundle or this repository, so no Apple artwork is
+redistributed. If those files ever disappear, the HUD falls back to SF Symbols.
 
-## Building
+## Building from source
 
 ```sh
-swift build -c release      # binary only
-./Scripts/build-app.sh      # assembles and signs the .app
-swift Scripts/make-icons.swift   # regenerates the app icon
+swift build -c release          # binary only
+./Scripts/build-app.sh          # assembles and signs BetterHUD.app
+swift Scripts/make-icons.swift  # regenerates the app icon
 ```
 
-Signing with a certificate rather than ad-hoc matters more than it looks: an
-ad-hoc signature's designated requirement is the binary's own cdhash, so every
-rebuild looks like a different app to macOS and silently drops the Accessibility
-grant. `Scripts/build-app.sh` uses a local code-signing certificate and falls
-back to ad-hoc with a warning. CLAUDE.md has the commands to create one.
-
-## Roadmap
-
-- Keyboard backlight keys (F5/F6) — macOS still ships the artwork for them
-- Precision mode (⇧⌥ for quarter steps)
-- Scroll over the menu bar icon to change volume
-- HUD size options
-- Notarized DMG releases
+The build script signs with a local code signing certificate and falls back to
+ad hoc signing with a warning. This matters more than it sounds: an ad hoc
+signature ties the app's identity to the binary's hash, so every rebuild looks
+like a different app to macOS and quietly drops the Accessibility permission.
+[CLAUDE.md](CLAUDE.md) has the commands to create a certificate.
 
 ## Version history
 
-### 0.0.1 — September 4, 2026
+### 0.0.1 (September 4, 2026)
 
 First release.
 
-- Intercepts the volume, mute, and brightness keys at the HID level and
+* Intercepts the volume, mute, and brightness keys at the HID level and
   suppresses the macOS 26 indicator
-- Centered HUD panel using macOS's own OSD artwork, with a 16-segment level bar
-- Volume, mute, and built-in display brightness control in Apple's sixteenths
-- Volume feedback click, honoring the system setting, invertible with Shift
-- First-run setup that reports permission state live
-- Menu bar settings: position, duration, which keys to take over, volume click,
-  and open at login
+* Centered HUD panel using the OSD artwork from macOS, with a 16 segment bar
+* Volume, mute, and built in display brightness control
+* Volume click, following the system setting, flippable with Shift
+* First launch setup that reports permission state as it changes
+* Menu bar settings for position, duration, which keys to take over, volume
+  click, and opening at login
+
+## Author
+
+**Connor Podea**, CS student at Arizona State University.
 
 ## License
 

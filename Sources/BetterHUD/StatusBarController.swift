@@ -15,7 +15,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private let statusItem: NSStatusItem
     private let statusLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-    private let headerView = MenuHeaderView()
     private let launchAtLoginItem = NSMenuItem(title: "Open at Login", action: nil, keyEquivalent: "")
 
     private var placementItems: [NSMenuItem] = []
@@ -53,11 +52,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let menu = NSMenu()
         menu.delegate = self
 
-        // A view rather than a title: menu rows reserve a column for
-        // checkmarks, so a centered string still sits right of the menu's
-        // actual center. A view centers against the full width.
         statusLine.isEnabled = false
-        statusLine.view = headerView
         menu.addItem(statusLine)
 
         // One selectable option per section, except Take Over, where any
@@ -113,7 +108,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// Refreshing when the menu opens keeps every checkmark honest without any
     /// observers running while nobody is looking.
     func menuWillOpen(_ menu: NSMenu) {
-        headerView.update(
+        statusLine.attributedTitle = titleBlock(
             status: isInterceptingKeys() ? "Replacing the System HUD" : "Permission Needed"
         )
 
@@ -127,6 +122,24 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     // MARK: - Menu building
+
+    /// The app name over its current state. Left aligned as a plain title, so
+    /// AppKit applies the same text inset as every other row and the header
+    /// lines up with them.
+    private func titleBlock(status: String) -> NSAttributedString {
+        let title = NSMutableAttributedString(
+            string: "BetterHUD\n",
+            attributes: [.font: NSFont.systemFont(ofSize: 13, weight: .semibold)]
+        )
+        title.append(NSAttributedString(
+            string: status,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ]
+        ))
+        return title
+    }
 
     private func item(title: String, tag: Int, action: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
@@ -187,72 +200,5 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func quit() {
         NSApp.terminate(nil)
-    }
-}
-
-/// The menu's header: the app name over its current state, centered.
-///
-/// Laid out by hand against `bounds` rather than with constraints, because
-/// AppKit stretches a menu item's view to the menu's width — centering has to
-/// follow that width whatever it turns out to be.
-@MainActor
-private final class MenuHeaderView: NSView {
-    private let titleLabel = NSTextField(labelWithString: "BetterHUD")
-    private let statusLabel = NSTextField(labelWithString: "")
-
-    private enum Metrics {
-        static let verticalPadding: CGFloat = 6
-        static let horizontalPadding: CGFloat = 24
-        static let spacing: CGFloat = 1
-    }
-
-    init() {
-        super.init(frame: .zero)
-        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
-        statusLabel.font = .systemFont(ofSize: 11)
-        statusLabel.textColor = .secondaryLabelColor
-        // Sized with placeholder text so the frame below is right from the
-        // start; a menu item view with a zero frame draws nothing.
-        statusLabel.stringValue = "Replacing the System HUD"
-        addSubview(titleLabel)
-        addSubview(statusLabel)
-        autoresizingMask = [.width]
-        frame = NSRect(origin: .zero, size: intrinsicContentSize)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    func update(status: String) {
-        statusLabel.stringValue = status
-        // Width is AppKit's to set; only the height is ours.
-        setFrameSize(NSSize(width: frame.width, height: intrinsicContentSize.height))
-        needsLayout = true
-    }
-
-    override var intrinsicContentSize: NSSize {
-        let width = max(titleLabel.fittingSize.width, statusLabel.fittingSize.width)
-        let height = titleLabel.fittingSize.height + statusLabel.fittingSize.height
-        return NSSize(
-            width: width + Metrics.horizontalPadding * 2,
-            height: height + Metrics.spacing + Metrics.verticalPadding * 2
-        )
-    }
-
-    override func layout() {
-        super.layout()
-        var y = bounds.maxY - Metrics.verticalPadding
-
-        for label in [titleLabel, statusLabel] {
-            let size = label.fittingSize
-            y -= size.height
-            label.frame = NSRect(
-                x: (bounds.width - size.width) / 2,
-                y: y,
-                width: size.width,
-                height: size.height
-            )
-            y -= Metrics.spacing
-        }
     }
 }
