@@ -19,17 +19,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.handle(event) ?? false
     }
     private var statusBar: StatusBarController?
-    private lazy var setupWindowController = SetupWindowController(permissions: permissions)
+    private lazy var settingsWindowController = SettingsWindowController(
+        settings: settings, permissions: permissions, updateChecker: updateChecker
+    )
     private var isIntercepting = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        statusBar = StatusBarController(settings: settings)
+        statusBar = StatusBarController(
+            settings: settings,
+            openSettings: { [weak self] in self?.settingsWindowController.show() }
+        )
 
         // Granting permission installs the tap immediately, so the app never
         // needs to be relaunched to start working.
         permissions.onTrustChanged = { [weak self] in
             self?.installTapIfPossible()
-            self?.setupWindowController.refresh()
+            self?.settingsWindowController.refresh()
         }
 
         updateChecker.onUpdateFound = { [weak self] release in
@@ -42,8 +47,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // A background app that does nothing until a permission is granted is
         // baffling, so explain itself until setup is actually done.
-        if !isIntercepting || !SetupWindowController.isSetupComplete {
-            setupWindowController.show()
+        if !isIntercepting || !SettingsWindowController.isSetupComplete {
+            settingsWindowController.show()
         }
     }
 

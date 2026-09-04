@@ -10,6 +10,7 @@ import AppKit
 @MainActor
 final class StatusBarController: NSObject, NSMenuDelegate {
     private let settings: Settings
+    private let openSettings: () -> Void
 
     private let statusItem: NSStatusItem
     private let opacitySlider = NSSlider()
@@ -23,8 +24,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let volumeKeysItem = NSMenuItem(title: "Volume and Mute", action: nil, keyEquivalent: "")
     private let brightnessKeysItem = NSMenuItem(title: "Brightness", action: nil, keyEquivalent: "")
 
-    init(settings: Settings) {
+    init(settings: Settings, openSettings: @escaping () -> Void) {
         self.settings = settings
+        self.openSettings = openSettings
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -101,13 +103,22 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         feedbackItems.forEach(menu.addItem)
 
         menu.addItem(.separator())
-        // Deliberately not `NSApplication.terminate(_:)`: macOS decorates that
-        // standard action with a symbol, which shifts the title into a
-        // different column from every other row.
-        let quit = NSMenuItem(title: "Quit BetterHUD", action: #selector(quit), keyEquivalent: "q")
-        Self.styleOption(quit)
-        quit.target = self
-        menu.addItem(quit)
+
+        // Buttons rather than rows, so they can sit side by side. A menu row is
+        // always full width, which can't put two controls on one line.
+        let footer = NSMenuItem()
+        footer.view = MenuFooterView(
+            onSettings: { [weak self] in
+                self?.dismissMenu()
+                self?.openSettings()
+            },
+            onQuit: { [weak self] in
+                self?.dismissMenu()
+                NSApp.terminate(nil)
+            }
+        )
+        footer.isEnabled = false
+        menu.addItem(footer)
 
         statusItem.menu = menu
     }
@@ -265,8 +276,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         settings.handlesBrightnessKeys.toggle()
     }
 
-    @objc private func quit() {
-        NSApp.terminate(nil)
+    /// Clicking a control inside a menu item's view doesn't dismiss the menu,
+    /// since AppKit only does that for rows it handles itself.
+    private func dismissMenu() {
+        statusItem.menu?.cancelTracking()
     }
 }
 
@@ -314,4 +327,84 @@ private final class SectionHeaderView: NSView {
             height: size.height
         )
     }
+}
+
+/// The menu's footer: Settings and Quit side by side, each in its own capsule.
+///
+/// These are buttons in a view rather than menu rows because a row is always
+/// the full width of the menu, so two of them can't share a line.
+@MainActor
+private final class MenuFooterView: NSView {
+    private let settingsButton = NSButton()
+    private let quitButton = NSButton()
+    private let onSettings: () -> Void
+    private let onQuit: () -> Void
+
+    private enum Metrics {
+        /// Matches the inset AppKit gives a menu item's title.
+        static let leadingInset: CGFloat = 18
+        static let trailingInset: CGFloat = 14
+        static let verticalPadding: CGFloat = 6
+        static let height: CGFloat = 34
+    }
+
+    init(onSettings: @escaping () -> Void, onQuit: @escaping () -> Void) {
+        self.onSettings = onSettings
+        self.onQuit = onQuit
+        super.init(frame: .zero)
+
+        configure(settingsButton, title: "Settings", action: #selector(handleSettings))
+        configure(quitButton, title: "Quit", action: #selector(handleQuit))
+        addSubview(settingsButton)
+        addSubview(quitButton)
+
+        autoresizingMask = [.width]
+        frame = NSRect(origin: .zero, size: intrinsicContentSize)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    /// `.inline` is the small gray capsule AppKit already draws for this, so
+    /// the bubble is the system's rather than something hand-painted.
+    private func configure(_ button: NSButton, title: String, action: Selector) {
+        button.title = title
+        button.bezelStyle = .inline
+        button.controlSize = .regular
+        button.font = .systemFont(ofSize: 12, weight: .medium)
+        button.target = self
+        button.action = action
+        button.sizeToFit()
+    }
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(
+            width: Metrics.leadingInset + settingsButton.fittingSize.width + 12
+                + quitButton.fittingSize.width + Metrics.trailingInset,
+            height: Metrics.height
+        )
+    }
+
+    override func layout() {
+        super.layout()
+
+        let settingsSize = settingsButton.fittingSize
+        settingsButton.frame = NSRect(
+            x: Metrics.leadingInset,
+            y: (bounds.height - settingsSize.height) / 2,
+            width: settingsSize.width,
+            height: settingsSize.height
+        )
+
+        let quitSize = quitButton.fittingSize
+        quitButton.frame = NSRect(
+            x: bounds.maxX - Metrics.trailingInset - quitSize.width,
+            y: (bounds.height - quitSize.height) / 2,
+            width: quitSize.width,
+            height: quitSize.height
+        )
+    }
+
+    @objc private func handleSettings() { onSettings() }
+    @objc private func handleQuit() { onQuit() }
 }
