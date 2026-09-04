@@ -307,13 +307,17 @@ private final class MenuHeaderView: NSView {
             y -= Metrics.lineSpacing
         }
 
-        // Fills the square to the right of the text, with the same margin
-        // above, below, and to its right: as tall as the text block, and
-        // reaching the trailing edge.
+        // Sits just past the text, filling the header's height with the same
+        // margin above and below. Pinning it to the trailing edge instead put
+        // it against the menu's border, because AppKit stretches this view to
+        // the full menu width.
         let margin = Metrics.verticalPadding
         let size = bounds.height - margin * 2
         iconView.frame = NSRect(
-            x: bounds.maxX - margin - size, y: margin, width: size, height: size
+            x: Metrics.leadingInset + textWidth + Metrics.iconGap,
+            y: margin,
+            width: size,
+            height: size
         )
     }
 }
