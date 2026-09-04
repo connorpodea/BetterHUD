@@ -26,7 +26,21 @@ never appears while it's running.
 ## Install
 
 Download the latest release, move `BetterHUD.app` to `/Applications` or
-`~/Applications`, and launch it. Or build from source:
+`~/Applications`, and launch it.
+
+> **First launch will be blocked by Gatekeeper.** BetterHUD isn't notarized by
+> Apple yet, so macOS will say it "cannot be opened because Apple cannot check
+> it for malicious software". To open it anyway: **right-click the app → Open**,
+> then confirm. Or clear the quarantine flag:
+>
+> ```sh
+> xattr -d com.apple.quarantine /Applications/BetterHUD.app
+> ```
+>
+> You only have to do this once. If you'd rather not, build from source instead
+> — a locally built copy isn't quarantined.
+
+Or build from source:
 
 ```sh
 git clone https://github.com/<your-username>/BetterHUD.git
