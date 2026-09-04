@@ -17,6 +17,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let launchAtLoginItem = NSMenuItem(title: "Open at Login", action: nil, keyEquivalent: "")
 
+    /// Computed once from the row titles, which never change.
+    private var cachedTrailingColumn: CGFloat?
+
     private var placementItems: [NSMenuItem] = []
     private var durationItems: [NSMenuItem] = []
     private var feedbackItems: [NSMenuItem] = []
@@ -51,6 +54,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private func configureMenu() {
         let menu = NSMenu()
         menu.delegate = self
+        // No state column, so titles start at the left edge instead of being
+        // pushed in by an empty checkmark gutter. Checkmarks move to the
+        // trailing edge instead, set in `refresh(_:checked:)`.
+        menu.showsStateColumn = false
 
         statusLine.isEnabled = false
         menu.addItem(statusLine)
@@ -116,9 +123,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         check(durationItems, at: Settings.durationChoices.firstIndex(of: settings.visibleDuration))
         check(feedbackItems, at: Settings.FeedbackMode.allCases.firstIndex(of: settings.feedbackMode))
 
-        volumeKeysItem.state = settings.handlesVolumeKeys ? .on : .off
-        brightnessKeysItem.state = settings.handlesBrightnessKeys ? .on : .off
-        launchAtLoginItem.state = LaunchAtLogin.isEnabled ? .on : .off
+        refresh(volumeKeysItem, checked: settings.handlesVolumeKeys)
+        refresh(brightnessKeysItem, checked: settings.handlesBrightnessKeys)
+        refresh(launchAtLoginItem, checked: LaunchAtLogin.isEnabled)
     }
 
     // MARK: - Menu building
@@ -168,8 +175,40 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// Marks one item in a mutually exclusive group.
     private func check(_ items: [NSMenuItem], at index: Int?) {
         for (offset, item) in items.enumerated() {
-            item.state = offset == index ? .on : .off
+            refresh(item, checked: offset == index)
         }
+    }
+
+    /// Draws the row with its checkmark pushed to the trailing edge, in line
+    /// with where AppKit puts a key equivalent like ⌘Q.
+    ///
+    /// `item.title` stays the plain text and is the source for this, so it can
+    /// be re-rendered on every menu open without tracking titles separately.
+    private func refresh(_ item: NSMenuItem, checked: Bool) {
+        let rightAligned = NSMutableParagraphStyle()
+        rightAligned.tabStops = [NSTextTab(textAlignment: .right, location: trailingColumn)]
+
+        item.attributedTitle = NSAttributedString(
+            string: checked ? "\(item.title)\t✓" : item.title,
+            attributes: [.font: NSFont.menuFont(ofSize: 0), .paragraphStyle: rightAligned]
+        )
+    }
+
+    /// Where the checkmark column sits: past the longest row, so no title ever
+    /// runs into it.
+    private var trailingColumn: CGFloat {
+        if let cachedTrailingColumn { return cachedTrailingColumn }
+
+        let font = NSFont.menuFont(ofSize: 0)
+        let rows = placementItems + durationItems + feedbackItems
+            + [volumeKeysItem, brightnessKeysItem, launchAtLoginItem]
+        let widest = rows
+            .map { ($0.title as NSString).size(withAttributes: [.font: font]).width }
+            .max() ?? 0
+
+        let column = widest + 34
+        cachedTrailingColumn = column
+        return column
     }
 
     // MARK: - Actions
