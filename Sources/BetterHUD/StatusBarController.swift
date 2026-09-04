@@ -18,6 +18,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let launchAtLoginItem = NSMenuItem(title: "Open at Login", action: nil, keyEquivalent: "")
 
     private var placementItems: [NSMenuItem] = []
+    private var styleItems: [NSMenuItem] = []
     private var durationItems: [NSMenuItem] = []
     private var feedbackItems: [NSMenuItem] = []
     private let volumeKeysItem = NSMenuItem(title: "Volume and Mute", action: nil, keyEquivalent: "")
@@ -62,6 +63,15 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             item(title: placement.title, tag: index, action: #selector(changePlacement(_:)))
         }
         placementItems.forEach(menu.addItem)
+
+        // Only worth a section when there's a choice, which means macOS 26.
+        if Settings.availableStyles.count > 1 {
+            addSection(to: menu, titled: "Style")
+            styleItems = Settings.availableStyles.enumerated().map { index, style in
+                item(title: style.title, tag: index, action: #selector(changeStyle(_:)))
+            }
+            styleItems.forEach(menu.addItem)
+        }
 
         addSection(to: menu, titled: "Show For")
         durationItems = Settings.durationChoices.enumerated().map { index, duration in
@@ -109,10 +119,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// observers running while nobody is looking.
     func menuWillOpen(_ menu: NSMenu) {
         statusLine.attributedTitle = titleBlock(
-            status: isInterceptingKeys() ? "Replacing the System HUD" : "Permission Needed"
+            status: isInterceptingKeys() ? "Replacing HUD" : "Needs Permission"
         )
 
         check(placementItems, at: Settings.Placement.allCases.firstIndex(of: settings.placement))
+        check(styleItems, at: Settings.availableStyles.firstIndex(of: settings.style))
         check(durationItems, at: Settings.durationChoices.firstIndex(of: settings.visibleDuration))
         check(feedbackItems, at: Settings.FeedbackMode.allCases.firstIndex(of: settings.feedbackMode))
 
@@ -166,6 +177,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     /// Marks one item in a mutually exclusive group.
+    ///
+    /// Uses AppKit's own state column. Right aligning the checkmarks instead
+    /// means a tab stop, and tab stops are measured inside the title's text
+    /// area, which is narrower than the menu and inset from its left edge, so
+    /// a stop near the menu's right edge overshoots and AppKit clamps it
+    /// differently per row. Doing it properly would mean custom drawn rows and
+    /// giving up the system's menu styling.
     private func check(_ items: [NSMenuItem], at index: Int?) {
         for (offset, item) in items.enumerated() {
             item.state = offset == index ? .on : .off
@@ -176,6 +194,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func changePlacement(_ sender: NSMenuItem) {
         settings.placement = Settings.Placement.allCases[sender.tag]
+    }
+
+    @objc private func changeStyle(_ sender: NSMenuItem) {
+        settings.style = Settings.availableStyles[sender.tag]
     }
 
     @objc private func changeDuration(_ sender: NSMenuItem) {
