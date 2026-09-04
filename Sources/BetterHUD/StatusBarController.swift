@@ -15,6 +15,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private let statusItem: NSStatusItem
     private let statusLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    private let headerView = MenuHeaderView()
     private let launchAtLoginItem = NSMenuItem(title: "Open at Login", action: nil, keyEquivalent: "")
 
     private var placementItems: [NSMenuItem] = []
@@ -56,8 +57,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         // gray out the title.
         menu.autoenablesItems = false
 
-        // Enabled purely so it isn't dimmed; it has no action to perform.
+        // A view, not a title: a menu item can only draw its image on the
+        // leading side, and the app icon belongs on the trailing side of the
+        // header.
         statusLine.isEnabled = true
+        statusLine.view = headerView
         menu.addItem(statusLine)
 
         // One selectable option per section, except Take Over, where any
@@ -85,6 +89,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         ] {
             item.target = self
             item.action = action
+            item.attributedTitle = Self.optionTitle(item.title)
             menu.addItem(item)
         }
 
@@ -97,6 +102,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         addSection(to: menu, titled: "Startup")
         launchAtLoginItem.target = self
         launchAtLoginItem.action = #selector(toggleLaunchAtLogin)
+        launchAtLoginItem.attributedTitle = Self.optionTitle(launchAtLoginItem.title)
         menu.addItem(launchAtLoginItem)
 
         menu.addItem(.separator())
@@ -113,7 +119,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// Refreshing when the menu opens keeps every checkmark honest without any
     /// observers running while nobody is looking.
     func menuWillOpen(_ menu: NSMenu) {
-        statusLine.attributedTitle = titleBlock(
+        headerView.update(
             status: isInterceptingKeys() ? "Replacing HUD" : "Needs Permission"
         )
 
@@ -128,32 +134,27 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     // MARK: - Menu building
 
-    /// The app name over its current state. Left aligned as a plain title, so
-    /// AppKit applies the same text inset as every other row and the header
-    /// lines up with them.
-    private func titleBlock(status: String) -> NSAttributedString {
-        let title = NSMutableAttributedString(
-            string: "BetterHUD\n",
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
-                .foregroundColor: NSColor.labelColor,
-            ]
-        )
-        title.append(NSAttributedString(
-            string: status,
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 11),
-                .foregroundColor: NSColor.secondaryLabelColor,
-            ]
-        ))
-        return title
-    }
-
     private func item(title: String, tag: Int, action: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.attributedTitle = Self.optionTitle(title)
         item.tag = tag
         item.target = self
         return item
+    }
+
+    /// Options are dimmer than the headings above them, so a section reads as
+    /// a label followed by its choices.
+    ///
+    /// One tradeoff: an explicit color is kept even while a row is highlighted,
+    /// where AppKit would normally switch the text to white.
+    static func optionTitle(_ text: String) -> NSAttributedString {
+        NSAttributedString(
+            string: text,
+            attributes: [
+                .font: NSFont.menuFont(ofSize: 0),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ]
+        )
     }
 
     /// A divider plus a heading, so the groups read as groups.
@@ -169,7 +170,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             string: title.uppercased(),
             attributes: [
                 .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
-                .foregroundColor: NSColor.secondaryLabelColor,
+                .foregroundColor: NSColor.labelColor,
             ]
         )
         header.isEnabled = false
@@ -218,5 +219,92 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+}
+
+/// The menu's header: the app name over its current state, with the app icon on
+/// the trailing side.
+///
+/// Laid out by hand against `bounds`, because AppKit stretches a menu item's
+/// view to the menu's width and the icon has to follow that edge.
+@MainActor
+private final class MenuHeaderView: NSView {
+    private let titleLabel = NSTextField(labelWithString: "BetterHUD")
+    private let statusLabel = NSTextField(labelWithString: "")
+    private let iconView = NSImageView()
+
+    private enum Metrics {
+        /// Matches the inset AppKit gives a menu item's title, so the header
+        /// lines up with the rows below it.
+        static let leadingInset: CGFloat = 21
+        static let trailingInset: CGFloat = 12
+        static let verticalPadding: CGFloat = 7
+        /// Space between the two lines of text.
+        static let lineSpacing: CGFloat = 4
+        static let iconSize: CGFloat = 30
+    }
+
+    init() {
+        super.init(frame: .zero)
+
+        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        titleLabel.textColor = .labelColor
+        statusLabel.font = .systemFont(ofSize: 11)
+        statusLabel.textColor = .secondaryLabelColor
+        // Placeholder text so the frame below is right from the start; a menu
+        // item view with a zero frame draws nothing.
+        statusLabel.stringValue = "Replacing HUD"
+
+        iconView.image = NSApp.applicationIconImage
+        iconView.imageScaling = .scaleProportionallyUpOrDown
+
+        addSubview(titleLabel)
+        addSubview(statusLabel)
+        addSubview(iconView)
+        autoresizingMask = [.width]
+        frame = NSRect(origin: .zero, size: intrinsicContentSize)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    func update(status: String) {
+        statusLabel.stringValue = status
+        // Width is AppKit's to set; only the height is ours.
+        setFrameSize(NSSize(width: frame.width, height: intrinsicContentSize.height))
+        needsLayout = true
+    }
+
+    override var intrinsicContentSize: NSSize {
+        let textWidth = max(titleLabel.fittingSize.width, statusLabel.fittingSize.width)
+        let textHeight = titleLabel.fittingSize.height + Metrics.lineSpacing
+            + statusLabel.fittingSize.height
+
+        return NSSize(
+            width: Metrics.leadingInset + textWidth + 12 + Metrics.iconSize
+                + Metrics.trailingInset,
+            height: max(textHeight, Metrics.iconSize) + Metrics.verticalPadding * 2
+        )
+    }
+
+    override func layout() {
+        super.layout()
+
+        var y = bounds.maxY - Metrics.verticalPadding
+        for label in [titleLabel, statusLabel] {
+            let size = label.fittingSize
+            y -= size.height
+            label.frame = NSRect(
+                x: Metrics.leadingInset, y: y, width: size.width, height: size.height
+            )
+            y -= Metrics.lineSpacing
+        }
+
+        iconView.frame = NSRect(
+            x: bounds.maxX - Metrics.trailingInset - Metrics.iconSize,
+            y: bounds.midY - Metrics.iconSize / 2,
+            width: Metrics.iconSize,
+            height: Metrics.iconSize
+        )
     }
 }
