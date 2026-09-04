@@ -32,10 +32,11 @@ final class Settings {
         case always
         case never
 
-        /// Spelled out for a menu, where there's room for it.
+        /// Kept short: a menu is only as narrow as its longest row, and the
+        /// section heading already supplies the context.
         var menuTitle: String {
             switch self {
-            case .followSystem: "Follow System Setting"
+            case .followSystem: "System"
             case .always: "Always"
             case .never: "Never"
             }

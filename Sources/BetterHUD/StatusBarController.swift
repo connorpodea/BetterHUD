@@ -54,7 +54,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         statusLine.isEnabled = false
         menu.addItem(statusLine)
-        menu.addItem(.separator())
 
         // One selectable option per section, except Take Over, where any
         // combination is valid.
@@ -96,12 +95,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(launchAtLoginItem)
 
         menu.addItem(.separator())
-        let quit = NSMenuItem(
-            title: "Quit BetterHUD",
-            action: #selector(NSApplication.terminate(_:)),
-            keyEquivalent: "q"
-        )
-        quit.target = NSApp
+        // Deliberately not `NSApplication.terminate(_:)`: macOS decorates that
+        // standard action with a symbol, which shifts the title into a
+        // different column from every other row.
+        let quit = NSMenuItem(title: "Quit BetterHUD", action: #selector(quit), keyEquivalent: "q")
+        quit.target = self
         menu.addItem(quit)
 
         statusItem.menu = menu
@@ -110,9 +108,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// Refreshing when the menu opens keeps every checkmark honest without any
     /// observers running while nobody is looking.
     func menuWillOpen(_ menu: NSMenu) {
-        statusLine.title = isInterceptingKeys()
-            ? "BetterHUD — Replacing the System HUD"
-            : "BetterHUD — Needs Accessibility Permission"
+        statusLine.attributedTitle = titleBlock(
+            status: isInterceptingKeys() ? "Replacing the System HUD" : "Permission Needed"
+        )
 
         check(placementItems, at: Settings.Placement.allCases.firstIndex(of: settings.placement))
         check(durationItems, at: Settings.durationChoices.firstIndex(of: settings.visibleDuration))
@@ -124,6 +122,31 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     // MARK: - Menu building
+
+    /// The app name over its current state, centered — a header for the menu
+    /// rather than just another row. Two lines keep the menu from having to be
+    /// as wide as both strings side by side.
+    private func titleBlock(status: String) -> NSAttributedString {
+        let centered = NSMutableParagraphStyle()
+        centered.alignment = .center
+
+        let title = NSMutableAttributedString(
+            string: "BetterHUD\n",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
+                .paragraphStyle: centered,
+            ]
+        )
+        title.append(NSAttributedString(
+            string: status,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11),
+                .paragraphStyle: centered,
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ]
+        ))
+        return title
+    }
 
     private func item(title: String, tag: Int, action: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
@@ -198,5 +221,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func toggleLaunchAtLogin() {
         LaunchAtLogin.setEnabled(!LaunchAtLogin.isEnabled)
         reopenMenu()
+    }
+
+    @objc private func quit() {
+        NSApp.terminate(nil)
     }
 }
