@@ -6,11 +6,10 @@ macOS 26 replaced the centered volume and brightness HUD with a small indicator
 in the corner of the screen. BetterHUD brings the centered panel back, and stops
 the new indicator from appearing while it runs.
 
-<!-- Screenshot: capture the HUD with Shift-Command-5 (use a timed capture, since
-     the HUD only stays up for a second or two), save it as docs/screenshot.png,
-     then uncomment:
-![BetterHUD showing the volume HUD](docs/screenshot.png)
--->
+<p align="center">
+  <img src="docs/volume.png" width="46%" alt="The volume HUD">
+  <img src="docs/brightness.png" width="46%" alt="The brightness HUD">
+</p>
 
 ## Features
 
@@ -97,8 +96,6 @@ only things that wake the app. The auto hide timer is armed only while the HUD
 is visible, settings are read when a key is pressed rather than cached, and the
 menu updates its checkmarks only when it opens.
 
-[CLAUDE.md](CLAUDE.md) has the full architecture notes.
-
 ## Limitations
 
 These are design decisions, not oversights.
@@ -129,11 +126,13 @@ swift build -c release          # binary only
 swift Scripts/make-icons.swift  # regenerates the app icon
 ```
 
-The build script signs with a local code signing certificate and falls back to
-ad hoc signing with a warning. This matters more than it sounds: an ad hoc
-signature ties the app's identity to the binary's hash, so every rebuild looks
-like a different app to macOS and quietly drops the Accessibility permission.
-[CLAUDE.md](CLAUDE.md) has the commands to create a certificate.
+The build script signs with a code signing certificate if it finds one, and
+falls back to ad hoc signing with a warning. This matters more than it sounds:
+an ad hoc signature ties the app's identity to the binary's hash, so every
+rebuild looks like a different app to macOS and quietly drops the Accessibility
+permission you granted. Point it at your own identity with
+`BETTERHUD_SIGN_IDENTITY="Your Certificate Name"`, and choose where the app is
+built with `BETTERHUD_INSTALL_DIR`.
 
 ## Version history
 
