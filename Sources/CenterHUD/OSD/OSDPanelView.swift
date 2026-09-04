@@ -19,10 +19,10 @@ final class OSDPanelView: NSView {
         /// row of floating pills. The gap shows the backdrop through as a
         /// separator line.
         static let segmentGap: CGFloat = 1
-        /// Cells are square; only the bar's outer ends are rounded, which the
-        /// container's corner radius takes care of by clipping.
+        /// The bar is fully square: neither the individual cells nor the
+        /// outer ends are rounded.
         static let segmentCornerRadius: CGFloat = 0
-        static let barCornerRadius: CGFloat = 2.5
+        static let barCornerRadius: CGFloat = 0
         static let barBottomInset: CGFloat = 34
 
         static var barWidth: CGFloat {
@@ -106,8 +106,6 @@ final class OSDPanelView: NSView {
 
     private func setUpLevelBar() {
         levelBarView.wantsLayer = true
-        // Clipping rounds the bar's outer ends while leaving the interior cell
-        // edges square.
         levelBarView.layer?.cornerRadius = Metrics.barCornerRadius
         levelBarView.layer?.masksToBounds = true
         levelBarView.frame = NSRect(

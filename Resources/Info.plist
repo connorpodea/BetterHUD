@@ -12,6 +12,8 @@
 	<string>CenterHUD</string>
 	<key>CFBundleExecutable</key>
 	<string>CenterHUD</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.connorpodea.centerhud</string>
 	<key>CFBundleShortVersionString</key>
