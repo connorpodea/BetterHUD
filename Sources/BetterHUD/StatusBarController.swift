@@ -110,6 +110,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         // standard action with a symbol, which shifts the title into a
         // different column from every other row.
         let quit = NSMenuItem(title: "Quit BetterHUD", action: #selector(quit), keyEquivalent: "q")
+        quit.attributedTitle = Self.optionTitle(quit.title)
         quit.target = self
         menu.addItem(quit)
 
@@ -248,7 +249,10 @@ private final class MenuHeaderView: NSView {
         static let iconGap: CGFloat = 11
         /// Icon height relative to the two lines of text stacked, so it reads
         /// slightly larger than them.
-        static let iconScale: CGFloat = 1.2
+        static let iconScale: CGFloat = 1.1
+        /// Lifts the icon off dead center, which sits visually low next to two
+        /// lines of text.
+        static let iconRise: CGFloat = 3
     }
 
     init() {
@@ -323,7 +327,7 @@ private final class MenuHeaderView: NSView {
         // edge, so it stays beside the title however wide AppKit makes the row.
         iconView.frame = NSRect(
             x: Metrics.leadingInset + textWidth + Metrics.iconGap,
-            y: bounds.midY - iconSize / 2,
+            y: bounds.midY - iconSize / 2 + Metrics.iconRise,
             width: iconSize,
             height: iconSize
         )
