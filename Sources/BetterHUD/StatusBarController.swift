@@ -160,24 +160,20 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     /// A divider plus a heading, so the groups read as groups.
     ///
-    /// Hand-styled rather than `NSMenuItem.sectionHeader(title:)`: that carries
-    /// Apple's styling but fixes the font size, and these headings need to be
-    /// larger than it draws them.
+    /// The heading is a view rather than a title, which is the only way to get
+    /// all three of: full contrast, no hover highlight, and no click. A
+    /// disabled title row is grayed out by AppKit, and an enabled one
+    /// highlights and takes clicks. AppKit neither dims nor highlights a view
+    /// it doesn't draw, so a disabled item with a view gets every part right.
+    ///
+    /// It also isn't `NSMenuItem.sectionHeader(title:)`, which carries Apple's
+    /// styling but fixes the font size smaller than wanted here.
     private func addSection(to menu: NSMenu, titled title: String) {
         menu.addItem(.separator())
 
         let header = NSMenuItem()
-        header.attributedTitle = NSAttributedString(
-            string: title.uppercased(),
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
-                .foregroundColor: NSColor.labelColor,
-            ]
-        )
-        // Enabled purely so it isn't dimmed: AppKit grays out a disabled item
-        // whatever color its attributed title asks for. It has no action, so
-        // clicking it does nothing beyond closing the menu.
-        header.isEnabled = true
+        header.view = SectionHeaderView(title: title.uppercased())
+        header.isEnabled = false
         menu.addItem(header)
     }
 
@@ -245,14 +241,8 @@ private final class MenuHeaderView: NSView {
         static let verticalPadding: CGFloat = 7
         /// Space between the two lines of text.
         static let lineSpacing: CGFloat = 4
-        /// Between the text and the icon.
+        /// Minimum space between the text and the icon.
         static let iconGap: CGFloat = 11
-        /// Icon height relative to the two lines of text stacked, so it reads
-        /// slightly larger than them.
-        static let iconScale: CGFloat = 1.1
-        /// Lifts the icon off dead center, which sits visually low next to two
-        /// lines of text.
-        static let iconRise: CGFloat = 3
     }
 
     init() {
@@ -296,17 +286,11 @@ private final class MenuHeaderView: NSView {
         titleLabel.fittingSize.height + Metrics.lineSpacing + statusLabel.fittingSize.height
     }
 
-    /// Derived from the text, so the icon tracks the fonts rather than being a
-    /// fixed number that drifts out of proportion.
-    private var iconSize: CGFloat {
-        textHeight * Metrics.iconScale
-    }
-
     override var intrinsicContentSize: NSSize {
         NSSize(
-            width: Metrics.leadingInset + textWidth + Metrics.iconGap + iconSize
-                + Metrics.trailingInset,
-            height: max(textHeight, iconSize) + Metrics.verticalPadding * 2
+            width: Metrics.leadingInset + textWidth + Metrics.iconGap + textHeight
+                + Metrics.verticalPadding,
+            height: textHeight + Metrics.verticalPadding * 2
         )
     }
 
@@ -323,13 +307,59 @@ private final class MenuHeaderView: NSView {
             y -= Metrics.lineSpacing
         }
 
-        // Positioned next to the text rather than pinned to the trailing
-        // edge, so it stays beside the title however wide AppKit makes the row.
+        // Fills the square to the right of the text, with the same margin
+        // above, below, and to its right: as tall as the text block, and
+        // reaching the trailing edge.
+        let margin = Metrics.verticalPadding
+        let size = bounds.height - margin * 2
         iconView.frame = NSRect(
-            x: Metrics.leadingInset + textWidth + Metrics.iconGap,
-            y: bounds.midY - iconSize / 2 + Metrics.iconRise,
-            width: iconSize,
-            height: iconSize
+            x: bounds.maxX - margin - size, y: margin, width: size, height: size
+        )
+    }
+}
+
+/// A section heading. A view rather than a menu item title, so it keeps full
+/// contrast without becoming hoverable or clickable.
+@MainActor
+private final class SectionHeaderView: NSView {
+    private let label = NSTextField(labelWithString: "")
+
+    private enum Metrics {
+        /// Matches the inset AppKit gives a menu item's title, so headings line
+        /// up with the rows under them.
+        static let leadingInset: CGFloat = 21
+        static let topPadding: CGFloat = 5
+        static let bottomPadding: CGFloat = 3
+    }
+
+    init(title: String) {
+        super.init(frame: .zero)
+        label.stringValue = title
+        label.font = .systemFont(ofSize: 12, weight: .semibold)
+        label.textColor = .labelColor
+        addSubview(label)
+        autoresizingMask = [.width]
+        frame = NSRect(origin: .zero, size: intrinsicContentSize)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(
+            width: Metrics.leadingInset + label.fittingSize.width,
+            height: label.fittingSize.height + Metrics.topPadding + Metrics.bottomPadding
+        )
+    }
+
+    override func layout() {
+        super.layout()
+        let size = label.fittingSize
+        label.frame = NSRect(
+            x: Metrics.leadingInset,
+            y: Metrics.bottomPadding,
+            width: size.width,
+            height: size.height
         )
     }
 }
