@@ -51,8 +51,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private func configureMenu() {
         let menu = NSMenu()
         menu.delegate = self
+        // Items keep whatever `isEnabled` they're given. Without this, AppKit
+        // disables anything with no action and draws it dimmed, which would
+        // gray out the title.
+        menu.autoenablesItems = false
 
-        statusLine.isEnabled = false
+        // Enabled purely so it isn't dimmed; it has no action to perform.
+        statusLine.isEnabled = true
         menu.addItem(statusLine)
 
         // One selectable option per section, except Take Over, where any
@@ -129,7 +134,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private func titleBlock(status: String) -> NSAttributedString {
         let title = NSMutableAttributedString(
             string: "BetterHUD\n",
-            attributes: [.font: NSFont.systemFont(ofSize: 13, weight: .semibold)]
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
+                .foregroundColor: NSColor.labelColor,
+            ]
         )
         title.append(NSAttributedString(
             string: status,
@@ -148,24 +156,19 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         return item
     }
 
-    /// Groups the rows under a heading.
+    /// A divider plus a heading, so the groups read as groups.
     ///
-    /// AppKit's own section headers carry Apple's styling and are meant to be
-    /// used without separators, which is both tidier and shorter than a
-    /// separator plus a hand-styled row. Older systems get the hand-styled
-    /// version.
+    /// Hand-styled rather than `NSMenuItem.sectionHeader(title:)`: that carries
+    /// Apple's styling but fixes the font size, and these headings need to be
+    /// larger than it draws them.
     private func addSection(to menu: NSMenu, titled title: String) {
-        if #available(macOS 14.0, *) {
-            menu.addItem(.sectionHeader(title: title))
-            return
-        }
-
         menu.addItem(.separator())
+
         let header = NSMenuItem()
         header.attributedTitle = NSAttributedString(
             string: title.uppercased(),
             attributes: [
-                .font: NSFont.systemFont(ofSize: 10, weight: .semibold),
+                .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
                 .foregroundColor: NSColor.secondaryLabelColor,
             ]
         )
