@@ -7,8 +7,6 @@ let log = Logger(subsystem: "com.connorpodea.centerhud", category: "mediakeys")
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
-// The tap cannot be created without Accessibility trust. Prompting here is
-// temporary; this moves into PermissionManager once the app has a menu bar UI.
 // The key is spelled out rather than using `kAXTrustedCheckOptionPrompt`: that
 // constant imports as a mutable global, which Swift 6 rejects as not
 // concurrency-safe.
@@ -18,6 +16,7 @@ let isTrusted = AXIsProcessTrustedWithOptions(
 
 let volumeController = VolumeController()
 let brightnessController = BrightnessController()
+let osdController = OSDController()
 
 log.notice("""
     startup: volume=\(volumeController.level.map { "\($0)" } ?? "unavailable", privacy: .public) \
@@ -28,17 +27,24 @@ let mediaKeyTap = MediaKeyTap { event in
     guard event.isPressed else { return }
 
     switch event.key {
-    case .soundUp:
-        volumeController.adjust(increasing: true)
-    case .soundDown:
-        volumeController.adjust(increasing: false)
+    case .soundUp, .soundDown:
+        volumeController.adjust(increasing: event.key == .soundUp)
+        // Read the level back rather than predicting it, so the HUD reflects
+        // what the hardware actually accepted.
+        guard let level = volumeController.level else { return }
+        osdController.showVolume(level: level, isMuted: volumeController.isMuted)
+
     case .mute:
         // Ignore auto-repeat so holding the key doesn't flap the mute state.
-        if !event.isRepeat { volumeController.toggleMute() }
-    case .brightnessUp:
-        brightnessController.adjust(increasing: true)
-    case .brightnessDown:
-        brightnessController.adjust(increasing: false)
+        guard !event.isRepeat else { return }
+        volumeController.toggleMute()
+        guard let level = volumeController.level else { return }
+        osdController.showVolume(level: level, isMuted: volumeController.isMuted)
+
+    case .brightnessUp, .brightnessDown:
+        brightnessController.adjust(increasing: event.key == .brightnessUp)
+        guard let level = brightnessController.level else { return }
+        osdController.showBrightness(level: level)
     }
 }
 
@@ -47,7 +53,7 @@ if mediaKeyTap.start() {
 } else {
     log.error("""
         event tap could not be created (trusted=\(isTrusted, privacy: .public)); \
-        grant Accessibility and Input Monitoring to CenterHUD.app
+        grant Accessibility to CenterHUD.app
         """)
 }
 
