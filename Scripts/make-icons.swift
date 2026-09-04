@@ -1,11 +1,12 @@
 #!/usr/bin/env swift
 //
-// Generates the app icon and the menu bar icon: the wordmark "Better" set over
-// "HUD".
+// Generates the app icon: the wordmark "HUD" over the same 16-cell level bar
+// the app draws on screen.
 //
 // The artwork is drawn in code rather than checked in as an opaque binary, so
-// it can be adjusted and regenerated. The menu bar uses a smaller version of
-// the same wordmark and bar.
+// it can be adjusted and regenerated. The menu bar uses an SF Symbol instead:
+// Apple's glyphs are built for that size and custom artwork looked muddy at
+// 18pt.
 //
 // Usage: swift Scripts/make-icons.swift
 
@@ -20,18 +21,17 @@ func drawWordmark(
     fittingWidth: CGFloat,
     centerX: CGFloat,
     baselineY: CGFloat,
-    weight: NSFont.Weight = .bold,
     color: NSColor
 ) {
     // Measure at an arbitrary size, then scale to the width we want, so the
     // wordmark always lines up with the bar beneath it.
     let probeSize: CGFloat = 100
-    let probeFont = NSFont.systemFont(ofSize: probeSize, weight: weight)
+    let probeFont = NSFont.systemFont(ofSize: probeSize, weight: .bold)
     let probeWidth = (text as NSString).size(withAttributes: [.font: probeFont]).width
     let fontSize = probeSize * fittingWidth / probeWidth
 
     let attributes: [NSAttributedString.Key: Any] = [
-        .font: NSFont.systemFont(ofSize: fontSize, weight: weight),
+        .font: NSFont.systemFont(ofSize: fontSize, weight: .bold),
         .foregroundColor: color,
     ]
     let size = (text as NSString).size(withAttributes: attributes)
@@ -39,6 +39,25 @@ func drawWordmark(
         at: NSPoint(x: centerX - size.width / 2, y: baselineY),
         withAttributes: attributes
     )
+}
+
+/// Draws the 16-cell level bar: square cells with hairline separators, matching
+/// the HUD itself.
+func drawLevelBar(in rect: NSRect, filled: Int, color: NSColor) {
+    let count = 16
+    let gap = rect.width * 0.006
+    let cellWidth = (rect.width - gap * CGFloat(count - 1)) / CGFloat(count)
+
+    for index in 0..<count {
+        let cell = NSRect(
+            x: rect.minX + CGFloat(index) * (cellWidth + gap),
+            y: rect.minY,
+            width: cellWidth,
+            height: rect.height
+        )
+        (index < filled ? color : color.withAlphaComponent(0.25)).setFill()
+        cell.fill()
+    }
 }
 
 // MARK: - App icon
@@ -65,48 +84,20 @@ func makeAppIcon(size: CGFloat) -> NSImage {
     shape.addClip()
     gradient?.draw(in: body, angle: -90)
 
-    drawWordmark(
-        "Better",
-        fittingWidth: 400 * scale,
-        centerX: 512 * scale,
-        baselineY: 560 * scale,
-        weight: .semibold,
-        color: .white
-    )
+    let barWidth: CGFloat = 524
     drawWordmark(
         "HUD",
-        fittingWidth: 560 * scale,
+        fittingWidth: barWidth * scale,
         centerX: 512 * scale,
-        baselineY: 340 * scale,
+        baselineY: 420 * scale,
+        color: .white
+    )
+    drawLevelBar(
+        in: NSRect(x: 250 * scale, y: 320 * scale, width: barWidth * scale, height: 46 * scale),
+        filled: 11,
         color: .white
     )
 
-    return image
-}
-
-// MARK: - Menu bar icon
-
-/// The same wordmark, sized for the menu bar.
-///
-/// A template image — black with alpha — so macOS tints it for light, dark, and
-/// highlighted menu bars. Laid out bottom-up from the height: cap height runs
-/// about 0.7 of the font size, and each font size follows from the width it has
-/// to fill, so the two lines never collide.
-func makeMenuBarIcon(pointSize: CGFloat) -> NSImage {
-    let unit = pointSize / 18
-    let width = 30 * unit
-
-    let image = NSImage(size: NSSize(width: width, height: pointSize))
-    image.lockFocus()
-    let centerX = width / 2
-
-    drawWordmark("HUD", fittingWidth: 21 * unit, centerX: centerX,
-                 baselineY: 2.5 * unit, color: .black)
-    drawWordmark("Better", fittingWidth: 17 * unit, centerX: centerX,
-                 baselineY: 11 * unit, weight: .semibold, color: .black)
-
-    image.unlockFocus()
-    image.isTemplate = true
     return image
 }
 
@@ -137,8 +128,4 @@ for (size, name) in [
     writePNG(makeAppIcon(size: CGFloat(size)), to: "\(iconset)/\(name).png")
 }
 
-// 1x and 2x renderings; NSImage picks the right one per display.
-writePNG(makeMenuBarIcon(pointSize: 18), to: "Resources/MenuBarIcon.png")
-writePNG(makeMenuBarIcon(pointSize: 36), to: "Resources/MenuBarIcon@2x.png")
-
-print("wrote \(iconset) and menu bar icons")
+print("wrote \(iconset)")
