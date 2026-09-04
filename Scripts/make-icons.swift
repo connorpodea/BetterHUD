@@ -1,14 +1,12 @@
 #!/usr/bin/env swift
 //
-// Generates the app icon.
+// Generates the app icon: the wordmark "HUD" over the same 16-cell level bar
+// the app draws on screen.
 //
-// The artwork is drawn in code rather than checked in as opaque binaries, so
-// it can be tweaked and regenerated. Everything here is original: Apple's OSD
-// PDFs are used at runtime for the HUD itself, but they are not redistributed,
-// so the icon draws its own speaker glyph.
-//
-// The menu bar uses an SF Symbol instead: Apple's glyphs are built for that
-// size and custom artwork looked muddy at 18pt.
+// The artwork is drawn in code rather than checked in as an opaque binary, so
+// it can be adjusted and regenerated. The menu bar uses an SF Symbol instead:
+// Apple's glyphs are built for that size and custom artwork looked muddy at
+// 18pt.
 //
 // Usage: swift Scripts/make-icons.swift
 
@@ -16,81 +14,35 @@ import AppKit
 
 // MARK: - Drawing helpers
 
-/// Draws a speaker with waves, sized to fit `rect`.
-func drawSpeaker(in rect: NSRect, color: NSColor) {
-    color.setFill()
-    color.setStroke()
+/// Draws `text` scaled so it spans exactly `fittingWidth`, centered on
+/// `centerX`, sitting on `baselineY`.
+func drawWordmark(
+    _ text: String,
+    fittingWidth: CGFloat,
+    centerX: CGFloat,
+    baselineY: CGFloat,
+    color: NSColor
+) {
+    // Measure at an arbitrary size, then scale to the width we want, so the
+    // wordmark always lines up with the bar beneath it.
+    let probeSize: CGFloat = 100
+    let probeFont = NSFont.systemFont(ofSize: probeSize, weight: .bold)
+    let probeWidth = (text as NSString).size(withAttributes: [.font: probeFont]).width
+    let fontSize = probeSize * fittingWidth / probeWidth
 
-    let unit = rect.width / 100
-    func x(_ v: CGFloat) -> CGFloat { rect.minX + v * unit }
-    func y(_ v: CGFloat) -> CGFloat { rect.minY + v * unit }
-
-    // Body: a rectangle for the driver plus a triangular cone.
-    let body = NSBezierPath()
-    body.move(to: NSPoint(x: x(4), y: y(38)))
-    body.line(to: NSPoint(x: x(20), y: y(38)))
-    body.line(to: NSPoint(x: x(40), y: y(16)))
-    body.line(to: NSPoint(x: x(40), y: y(84)))
-    body.line(to: NSPoint(x: x(20), y: y(62)))
-    body.line(to: NSPoint(x: x(4), y: y(62)))
-    body.close()
-    body.fill()
-
-    // Three concentric waves.
-    for (index, radius) in [22.0, 36.0, 50.0].enumerated() {
-        let wave = NSBezierPath()
-        let lineWidth = 7.0 - Double(index) * 0.5
-        wave.appendArc(
-            withCenter: NSPoint(x: x(44), y: y(50)),
-            radius: radius * unit,
-            startAngle: -42,
-            endAngle: 42
-        )
-        wave.lineWidth = lineWidth * unit
-        wave.lineCapStyle = .round
-        wave.stroke()
-    }
-}
-
-/// Draws a sun with rays, sized to fit `rect` — the brightness counterpart to
-/// the speaker.
-func drawSun(in rect: NSRect, color: NSColor) {
-    color.setStroke()
-
-    let unit = rect.width / 100
-    let center = NSPoint(x: rect.midX, y: rect.midY)
-
-    let disc = NSBezierPath(
-        ovalIn: NSRect(
-            x: center.x - 22 * unit,
-            y: center.y - 22 * unit,
-            width: 44 * unit,
-            height: 44 * unit
-        )
+    let attributes: [NSAttributedString.Key: Any] = [
+        .font: NSFont.systemFont(ofSize: fontSize, weight: .bold),
+        .foregroundColor: color,
+    ]
+    let size = (text as NSString).size(withAttributes: attributes)
+    (text as NSString).draw(
+        at: NSPoint(x: centerX - size.width / 2, y: baselineY),
+        withAttributes: attributes
     )
-    disc.lineWidth = 7 * unit
-    disc.stroke()
-
-    // Eight rays, evenly spaced around the disc.
-    for step in 0..<8 {
-        let angle = Double(step) * .pi / 4
-        let ray = NSBezierPath()
-        ray.move(to: NSPoint(
-            x: center.x + cos(angle) * 34 * unit,
-            y: center.y + sin(angle) * 34 * unit
-        ))
-        ray.line(to: NSPoint(
-            x: center.x + cos(angle) * 48 * unit,
-            y: center.y + sin(angle) * 48 * unit
-        ))
-        ray.lineWidth = 7 * unit
-        ray.lineCapStyle = .round
-        ray.stroke()
-    }
 }
 
-/// Draws the 16-cell level bar: square cells, hairline separators, matching the
-/// HUD itself.
+/// Draws the 16-cell level bar: square cells with hairline separators, matching
+/// the HUD itself.
 func drawLevelBar(in rect: NSRect, filled: Int, color: NSColor) {
     let count = 16
     let gap = rect.width * 0.006
@@ -122,7 +74,7 @@ func makeAppIcon(size: CGFloat) -> NSImage {
     let body = NSRect(x: 100 * scale, y: 100 * scale, width: 824 * scale, height: 824 * scale)
     let shape = NSBezierPath(roundedRect: body, xRadius: 185 * scale, yRadius: 185 * scale)
 
-    // Dark HUD-like backing, echoing the panel the app draws.
+    // Dark backing, echoing the HUD panel the app draws.
     let gradient = NSGradient(
         colors: [
             NSColor(calibratedWhite: 0.24, alpha: 1),
@@ -132,27 +84,16 @@ func makeAppIcon(size: CGFloat) -> NSImage {
     shape.addClip()
     gradient?.draw(in: body, angle: -90)
 
-    // A soft top highlight, so it doesn't read as flat.
-    NSColor(calibratedWhite: 1, alpha: 0.10).setFill()
-    NSBezierPath(
-        roundedRect: body.insetBy(dx: 8 * scale, dy: 8 * scale),
-        xRadius: 177 * scale,
-        yRadius: 177 * scale
-    ).fill()
-    gradient?.draw(in: body.insetBy(dx: 10 * scale, dy: 10 * scale), angle: -90)
-
-    // Brightness on the left, volume on the right, both above the bar — the
-    // icon has to say "volume and brightness", not just one of them.
-    drawSun(
-        in: NSRect(x: 205 * scale, y: 415 * scale, width: 290 * scale, height: 290 * scale),
-        color: .white
-    )
-    drawSpeaker(
-        in: NSRect(x: 540 * scale, y: 455 * scale, width: 290 * scale, height: 210 * scale),
+    let barWidth: CGFloat = 524
+    drawWordmark(
+        "HUD",
+        fittingWidth: barWidth * scale,
+        centerX: 512 * scale,
+        baselineY: 420 * scale,
         color: .white
     )
     drawLevelBar(
-        in: NSRect(x: 250 * scale, y: 300 * scale, width: 524 * scale, height: 46 * scale),
+        in: NSRect(x: 250 * scale, y: 320 * scale, width: barWidth * scale, height: 46 * scale),
         filled: 11,
         color: .white
     )
