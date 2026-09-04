@@ -15,31 +15,23 @@ final class OSDController {
         static let fadeOut: TimeInterval = 0.4
     }
 
-    private enum Glyph {
-        static let pointSize: CGFloat = 76
-        static let volume = "speaker.wave.3.fill"
-        static let muted = "speaker.slash.fill"
-        static let brightness = "sun.max.fill"
-    }
-
     private let window = OSDWindow()
+    private let glyphs = OSDGlyphProvider()
     private var hideTimer: Timer?
 
-    /// Symbol images are cached because the volume glyph varies with level:
-    /// rebuilding it on every press would allocate for no reason.
-    private var glyphCache: [String: NSImage] = [:]
-
     func showVolume(level: Float, isMuted: Bool) {
-        // A muted output shows the crossed-out speaker and an empty bar.
+        // A muted output shows the crossed-out speaker and an empty bar, as the
+        // native HUD does. Apple's speaker glyph is a single fixed image, so it
+        // doesn't change with the level.
         if isMuted {
-            show(icon: glyph(named: Glyph.muted), level: 0)
+            show(icon: glyphs.image(for: .mute), level: 0)
         } else {
-            show(icon: glyph(named: Glyph.volume, variableValue: Double(level)), level: level)
+            show(icon: glyphs.image(for: .volume), level: level)
         }
     }
 
     func showBrightness(level: Float) {
-        show(icon: glyph(named: Glyph.brightness), level: level)
+        show(icon: glyphs.image(for: .brightness), level: level)
     }
 
     // MARK: - Presentation
@@ -88,33 +80,5 @@ final class OSDController {
                 window.orderOut(nil)
             }
         })
-    }
-
-    // MARK: - Glyphs
-
-    private func glyph(named name: String, variableValue: Double? = nil) -> NSImage? {
-        // Quantize the variable value to the 16 steps the keys produce, so the
-        // cache has a small fixed number of entries.
-        let step = variableValue.map { Int(($0 * 16).rounded()) }
-        let key = step.map { "\(name)#\($0)" } ?? name
-        if let cached = glyphCache[key] { return cached }
-
-        let image: NSImage? = if let step {
-            NSImage(
-                systemSymbolName: name,
-                variableValue: Double(step) / 16,
-                accessibilityDescription: nil
-            )
-        } else {
-            NSImage(systemSymbolName: name, accessibilityDescription: nil)
-        }
-
-        guard let configured = image?.withSymbolConfiguration(
-            NSImage.SymbolConfiguration(pointSize: Glyph.pointSize, weight: .regular)
-        ) else { return nil }
-
-        configured.isTemplate = true
-        glyphCache[key] = configured
-        return configured
     }
 }
