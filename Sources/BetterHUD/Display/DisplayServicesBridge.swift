@@ -21,9 +21,6 @@ struct DisplayServicesBridge {
 
     private let getBrightnessFunction: GetBrightness
     private let setBrightnessFunction: SetBrightness
-    /// Optional: ramps to the new value instead of jumping to it, which is
-    /// what stops a held key from visibly stepping the display.
-    private let setBrightnessSmoothFunction: SetBrightness?
 
     private static let frameworkPath =
         "/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices"
@@ -38,8 +35,6 @@ struct DisplayServicesBridge {
 
         getBrightnessFunction = unsafeBitCast(get, to: GetBrightness.self)
         setBrightnessFunction = unsafeBitCast(set, to: SetBrightness.self)
-        setBrightnessSmoothFunction = dlsym(handle, "DisplayServicesSetBrightnessSmooth")
-            .map { unsafeBitCast($0, to: SetBrightness.self) }
     }
 
     /// Current brightness in 0...1, or nil if the display doesn't report one.
@@ -49,16 +44,12 @@ struct DisplayServicesBridge {
         return value
     }
 
-    /// Sets brightness, ramping where the system supports it.
-    ///
-    /// The plain setter applies each step instantly, so a held key produces
-    /// visible stepping. The smooth variant animates, which is what the
-    /// hardware keys do natively. Falls back if it's unavailable or fails.
+    /// Note: the framework also exports `DisplayServicesSetBrightnessSmooth`,
+    /// which sounds like the right call for avoiding visible stepping. It
+    /// isn't usable here: on this hardware it returns success and changes
+    /// nothing, so relying on its return value silently breaks brightness.
     @discardableResult
     func setBrightness(_ value: Float, of display: CGDirectDisplayID) -> Bool {
-        if let smooth = setBrightnessSmoothFunction, smooth(display, value) == 0 {
-            return true
-        }
-        return setBrightnessFunction(display, value) == 0
+        setBrightnessFunction(display, value) == 0
     }
 }

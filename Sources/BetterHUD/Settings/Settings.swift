@@ -56,7 +56,7 @@ final class Settings {
     static let durationChoices: [TimeInterval] = [1.0, 1.5, 2.0]
 
     /// Opacities the slider snaps to.
-    static let opacityChoices: [Double] = [0, 0.25, 0.5, 1.0]
+    static let opacityChoices: [Double] = [0, 0.25, 0.5, 0.75, 1.0]
 
     private let defaults: UserDefaults
 
