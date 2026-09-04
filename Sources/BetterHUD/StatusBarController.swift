@@ -161,46 +161,28 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     // MARK: - Actions
 
-    /// AppKit always dismisses a menu when an item is clicked, so changing
-    /// several settings would mean reopening the menu each time. Reopening it
-    /// immediately keeps it up until the user clicks away.
-    ///
-    /// The alternative — custom views for every row — would mean drawing menu
-    /// rows by hand and losing the system's own menu styling.
-    private func reopenMenu() {
-        DispatchQueue.main.async { [weak self] in
-            self?.statusItem.button?.performClick(nil)
-        }
-    }
-
     @objc private func changePlacement(_ sender: NSMenuItem) {
         settings.placement = Settings.Placement.allCases[sender.tag]
-        reopenMenu()
     }
 
     @objc private func changeDuration(_ sender: NSMenuItem) {
         settings.visibleDuration = Settings.durationChoices[sender.tag]
-        reopenMenu()
     }
 
     @objc private func changeFeedbackMode(_ sender: NSMenuItem) {
         settings.feedbackMode = Settings.FeedbackMode.allCases[sender.tag]
-        reopenMenu()
     }
 
     @objc private func toggleVolumeKeys() {
         settings.handlesVolumeKeys.toggle()
-        reopenMenu()
     }
 
     @objc private func toggleBrightnessKeys() {
         settings.handlesBrightnessKeys.toggle()
-        reopenMenu()
     }
 
     @objc private func toggleLaunchAtLogin() {
         LaunchAtLogin.setEnabled(!LaunchAtLogin.isEnabled)
-        reopenMenu()
     }
 
     @objc private func quit() {
@@ -229,9 +211,13 @@ private final class MenuHeaderView: NSView {
         titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
         statusLabel.font = .systemFont(ofSize: 11)
         statusLabel.textColor = .secondaryLabelColor
+        // Sized with placeholder text so the frame below is right from the
+        // start; a menu item view with a zero frame draws nothing.
+        statusLabel.stringValue = "Replacing the System HUD"
         addSubview(titleLabel)
         addSubview(statusLabel)
         autoresizingMask = [.width]
+        frame = NSRect(origin: .zero, size: intrinsicContentSize)
     }
 
     @available(*, unavailable)
@@ -239,8 +225,9 @@ private final class MenuHeaderView: NSView {
 
     func update(status: String) {
         statusLabel.stringValue = status
+        // Width is AppKit's to set; only the height is ours.
+        setFrameSize(NSSize(width: frame.width, height: intrinsicContentSize.height))
         needsLayout = true
-        invalidateIntrinsicContentSize()
     }
 
     override var intrinsicContentSize: NSSize {

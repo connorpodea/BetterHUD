@@ -61,13 +61,17 @@ final class OSDController {
 
     private func scheduleHide() {
         hideTimer?.invalidate()
+
         // A one-shot timer, armed only while the HUD is up, so an idle app has
         // nothing scheduled at all.
-        hideTimer = Timer.scheduledTimer(
-            withTimeInterval: settings.visibleDuration, repeats: false
-        ) { _ in
+        let timer = Timer(timeInterval: settings.visibleDuration, repeats: false) { _ in
             MainActor.assumeIsolated { [weak self] in self?.hide() }
         }
+        // Common modes, not the default mode: while a menu is open the run loop
+        // is tracking events, and a default-mode timer wouldn't fire until the
+        // menu closed — leaving the HUD stuck on screen.
+        RunLoop.main.add(timer, forMode: .common)
+        hideTimer = timer
     }
 
     private func hide() {
