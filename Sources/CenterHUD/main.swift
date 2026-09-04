@@ -2,9 +2,6 @@ import AppKit
 import ApplicationServices
 import os
 
-// Step 3 spike: intercept the keys and log them, without changing volume or
-// brightness yet. This isolates the one risky question — does consuming the
-// event actually suppress the native macOS HUD?
 let log = Logger(subsystem: "com.connorpodea.centerhud", category: "mediakeys")
 
 let app = NSApplication.shared
@@ -19,12 +16,23 @@ let isTrusted = AXIsProcessTrustedWithOptions(
     ["AXTrustedCheckOptionPrompt": true] as CFDictionary
 )
 
+let volumeController = VolumeController()
+
+// Brightness keys are still inert until the DisplayServices bridge lands.
 let mediaKeyTap = MediaKeyTap { event in
-    log.notice("""
-        intercepted \(String(describing: event.key), privacy: .public) \
-        pressed=\(event.isPressed, privacy: .public) \
-        repeat=\(event.isRepeat, privacy: .public)
-        """)
+    guard event.isPressed else { return }
+
+    switch event.key {
+    case .soundUp:
+        volumeController.adjust(increasing: true)
+    case .soundDown:
+        volumeController.adjust(increasing: false)
+    case .mute:
+        // Ignore auto-repeat so holding the key doesn't flap the mute state.
+        if !event.isRepeat { volumeController.toggleMute() }
+    case .brightnessUp, .brightnessDown:
+        break
+    }
 }
 
 if mediaKeyTap.start() {
