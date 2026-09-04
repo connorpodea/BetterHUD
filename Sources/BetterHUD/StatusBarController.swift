@@ -243,7 +243,6 @@ private final class MenuHeaderView: NSView {
         static let lineSpacing: CGFloat = 4
         /// Between the text and the icon.
         static let iconGap: CGFloat = 8
-        static let iconSize: CGFloat = 26
     }
 
     init() {
@@ -277,15 +276,22 @@ private final class MenuHeaderView: NSView {
         needsLayout = true
     }
 
-    override var intrinsicContentSize: NSSize {
-        let textWidth = max(titleLabel.fittingSize.width, statusLabel.fittingSize.width)
-        let textHeight = titleLabel.fittingSize.height + Metrics.lineSpacing
-            + statusLabel.fittingSize.height
+    /// Width of the wider of the two lines.
+    private var textWidth: CGFloat {
+        max(titleLabel.fittingSize.width, statusLabel.fittingSize.width)
+    }
 
-        return NSSize(
-            width: Metrics.leadingInset + textWidth + Metrics.iconGap + Metrics.iconSize
+    /// Height of both lines together. The icon is drawn at this size, so it
+    /// stands exactly as tall as the title and status line stacked.
+    private var textHeight: CGFloat {
+        titleLabel.fittingSize.height + Metrics.lineSpacing + statusLabel.fittingSize.height
+    }
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(
+            width: Metrics.leadingInset + textWidth + Metrics.iconGap + textHeight
                 + Metrics.trailingInset,
-            height: max(textHeight, Metrics.iconSize) + Metrics.verticalPadding * 2
+            height: textHeight + Metrics.verticalPadding * 2
         )
     }
 
@@ -302,11 +308,14 @@ private final class MenuHeaderView: NSView {
             y -= Metrics.lineSpacing
         }
 
+        // Positioned next to the text rather than pinned to the trailing
+        // edge, so it stays beside the title however wide AppKit makes the row.
+        let iconSize = textHeight
         iconView.frame = NSRect(
-            x: bounds.maxX - Metrics.trailingInset - Metrics.iconSize,
-            y: bounds.midY - Metrics.iconSize / 2,
-            width: Metrics.iconSize,
-            height: Metrics.iconSize
+            x: Metrics.leadingInset + textWidth + Metrics.iconGap,
+            y: bounds.midY - iconSize / 2,
+            width: iconSize,
+            height: iconSize
         )
     }
 }
