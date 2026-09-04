@@ -2,24 +2,23 @@ import AppKit
 
 /// The menu bar item.
 ///
-/// Deliberately short: the settings themselves live in the settings window, so
-/// this is just a way in, plus quit. Presenting the settings here as well meant
+/// Deliberately short: the settings themselves live in the settings window,
+/// which is also where checking for updates lives, so this is just a way in
+/// plus quit. Presenting the settings here as well meant
 /// maintaining every one of them twice, and a menu is the worse of the two
 /// surfaces for it — checkmark columns, type-select, and a width set by the
 /// longest label are all problems a window doesn't have.
 @MainActor
 final class StatusBarController: NSObject {
     private let openSettings: () -> Void
-    private let checkForUpdates: () -> Void
 
     private let statusItem: NSStatusItem
     /// Inserted at the top only when a newer release exists.
     private var updateItem: NSMenuItem?
     private var updatePage: URL?
 
-    init(openSettings: @escaping () -> Void, checkForUpdates: @escaping () -> Void) {
+    init(openSettings: @escaping () -> Void) {
         self.openSettings = openSettings
-        self.checkForUpdates = checkForUpdates
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -46,7 +45,6 @@ final class StatusBarController: NSObject {
         let menu = NSMenu()
 
         menu.addItem(item(title: "Settings…", action: #selector(handleOpenSettings)))
-        menu.addItem(item(title: "Check for Updates", action: #selector(handleCheckForUpdates)))
         menu.addItem(.separator())
         // Deliberately not `NSApplication.terminate(_:)`: macOS decorates that
         // standard action with a symbol, which shifts the title out of line
@@ -78,10 +76,6 @@ final class StatusBarController: NSObject {
 
     @objc private func handleOpenSettings() {
         openSettings()
-    }
-
-    @objc private func handleCheckForUpdates() {
-        checkForUpdates()
     }
 
     @objc private func openUpdatePage() {
