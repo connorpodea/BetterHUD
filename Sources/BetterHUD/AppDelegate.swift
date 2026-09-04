@@ -26,8 +26,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusBar = StatusBarController(
-            settings: settings,
-            openSettings: { [weak self] in self?.settingsWindowController.show() }
+            openSettings: { [weak self] in self?.settingsWindowController.show() },
+            checkForUpdates: { [weak self] in self?.checkForUpdates() }
         )
 
         // Granting permission installs the tap immediately, so the app never
@@ -55,6 +55,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         // Releasing the tap hands the keys straight back to the system.
         mediaKeyTap.stop()
+    }
+
+    /// Opens the release page if an update is already known, otherwise asks.
+    private func checkForUpdates() {
+        if let release = updateChecker.newerRelease {
+            NSWorkspace.shared.open(release.page)
+        } else {
+            updateChecker.check()
+        }
     }
 
     private func installTapIfPossible() {

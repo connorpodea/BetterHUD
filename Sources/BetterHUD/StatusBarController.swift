@@ -1,32 +1,25 @@
 import AppKit
 
-/// The menu bar item, which is both the app's status display and its entire
-/// settings UI.
+/// The menu bar item.
 ///
-/// Everything lives here rather than in a settings window: each preference is a
-/// short list of choices, so the menu lays them out as flat labelled sections
-/// with checkmarks — every option visible at a glance, nothing to place, size,
-/// or manage.
+/// Deliberately short: the settings themselves live in the settings window, so
+/// this is just a way in, plus quit. Presenting the settings here as well meant
+/// maintaining every one of them twice, and a menu is the worse of the two
+/// surfaces for it — checkmark columns, type-select, and a width set by the
+/// longest label are all problems a window doesn't have.
 @MainActor
-final class StatusBarController: NSObject, NSMenuDelegate {
-    private let settings: Settings
+final class StatusBarController: NSObject {
     private let openSettings: () -> Void
+    private let checkForUpdates: () -> Void
 
     private let statusItem: NSStatusItem
-    private let opacitySlider = NSSlider()
-    /// Added to the top of the menu only when a newer release exists.
+    /// Inserted at the top only when a newer release exists.
     private var updateItem: NSMenuItem?
     private var updatePage: URL?
 
-    private var placementItems: [NSMenuItem] = []
-    private var durationItems: [NSMenuItem] = []
-    private var feedbackItems: [NSMenuItem] = []
-    private let volumeKeysItem = NSMenuItem(title: "Volume and Mute", action: nil, keyEquivalent: "")
-    private let brightnessKeysItem = NSMenuItem(title: "Brightness", action: nil, keyEquivalent: "")
-
-    init(settings: Settings, openSettings: @escaping () -> Void) {
-        self.settings = settings
+    init(openSettings: @escaping () -> Void, checkForUpdates: @escaping () -> Void) {
         self.openSettings = openSettings
+        self.checkForUpdates = checkForUpdates
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -51,198 +44,44 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private func configureMenu() {
         let menu = NSMenu()
-        menu.delegate = self
-        // Items keep whatever `isEnabled` they're given. Without this, AppKit
-        // disables anything with no action and draws it dimmed, which would
-        // gray out the title.
-        menu.autoenablesItems = false
 
-        // The update row is inserted at the top later, if one is found.
-
-        // One selectable option per section, except Take Over, where any
-        // combination is valid.
-        addSection(to: menu, titled: "Position")
-        placementItems = Settings.Placement.allCases.enumerated().map { index, placement in
-            item(title: placement.title, tag: index, action: #selector(changePlacement(_:)))
-        }
-        placementItems.forEach(menu.addItem)
-
-        addSection(to: menu, titled: "Show For")
-        durationItems = Settings.durationChoices.enumerated().map { index, duration in
-            item(
-                title: String(format: "%.1f seconds", duration),
-                tag: index,
-                action: #selector(changeDuration(_:))
-            )
-        }
-        durationItems.forEach(menu.addItem)
-
-        addSection(to: menu, titled: "Opacity")
-        let opacityItem = NSMenuItem()
-        opacityItem.view = makeOpacityRow()
-        // Disabled so the row itself can't be clicked or highlighted; the
-        // slider inside it still tracks the mouse.
-        opacityItem.isEnabled = false
-        menu.addItem(opacityItem)
-
-        addSection(to: menu, titled: "Take Over")
-        for (item, action) in [
-            (volumeKeysItem, #selector(toggleVolumeKeys)),
-            (brightnessKeysItem, #selector(toggleBrightnessKeys)),
-        ] {
-            item.target = self
-            item.action = action
-            Self.styleOption(item)
-            menu.addItem(item)
-        }
-
-        addSection(to: menu, titled: "Volume Click")
-        feedbackItems = Settings.FeedbackMode.allCases.enumerated().map { index, mode in
-            item(title: mode.menuTitle, tag: index, action: #selector(changeFeedbackMode(_:)))
-        }
-        feedbackItems.forEach(menu.addItem)
-
+        menu.addItem(item(title: "Settings…", action: #selector(handleOpenSettings)))
+        menu.addItem(item(title: "Check for Updates", action: #selector(handleCheckForUpdates)))
         menu.addItem(.separator())
-
-        // Buttons rather than rows, so they can sit side by side. A menu row is
-        // always full width, which can't put two controls on one line.
-        let footer = NSMenuItem()
-        footer.view = MenuFooterView(
-            onSettings: { [weak self] in
-                self?.dismissMenu()
-                self?.openSettings()
-            },
-            onQuit: { [weak self] in
-                self?.dismissMenu()
-                NSApp.terminate(nil)
-            }
-        )
-        footer.isEnabled = false
-        menu.addItem(footer)
+        // Deliberately not `NSApplication.terminate(_:)`: macOS decorates that
+        // standard action with a symbol, which shifts the title out of line
+        // with the other rows.
+        menu.addItem(item(title: "Quit BetterHUD", action: #selector(handleQuit)))
 
         statusItem.menu = menu
     }
 
-    /// Refreshing when the menu opens keeps every checkmark honest without any
-    /// observers running while nobody is looking.
-    func menuWillOpen(_ menu: NSMenu) {
-        opacitySlider.doubleValue = settings.backdropOpacity
-        check(placementItems, at: Settings.Placement.allCases.firstIndex(of: settings.placement))
-        check(durationItems, at: Settings.durationChoices.firstIndex(of: settings.visibleDuration))
-        check(feedbackItems, at: Settings.FeedbackMode.allCases.firstIndex(of: settings.feedbackMode))
-
-        volumeKeysItem.state = settings.handlesVolumeKeys ? .on : .off
-        brightnessKeysItem.state = settings.handlesBrightnessKeys ? .on : .off
-    }
-
-    // MARK: - Menu building
-
-    private func item(title: String, tag: Int, action: Selector) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-        Self.styleOption(item)
-        item.tag = tag
-        item.target = self
-        return item
-    }
-
-    /// Draws a row dimmer than the heading above it, so a section reads as a
-    /// label followed by its choices.
-    ///
-    /// The plain title is cleared afterwards, because type-select matches typed
-    /// characters against `title`: with it empty, pressing "u" no longer jumps
-    /// to Upper. `attributedTitle` still supplies the text that's drawn, and
-    /// the accessibility title keeps the row readable to VoiceOver.
-    ///
-    /// One tradeoff: an explicit color is kept even while a row is highlighted,
-    /// where AppKit would normally switch the text to white.
-    static func styleOption(_ item: NSMenuItem) {
-        let text = item.title
-        item.attributedTitle = NSAttributedString(
-            string: text,
-            attributes: [
-                .font: NSFont.menuFont(ofSize: 0),
-                .foregroundColor: NSColor.secondaryLabelColor,
-            ]
-        )
-        item.title = ""
-        item.setAccessibilityTitle(text)
-    }
-
     /// Shows a row linking to a newer release. Nothing appears unless one
-    /// exists, so the menu stays as it is for anyone up to date.
+    /// exists, so the menu is unchanged for anyone up to date.
     func showUpdate(version: String, page: URL) {
         guard updateItem == nil, let menu = statusItem.menu else { return }
         updatePage = page
 
-        let item = NSMenuItem(
-            title: "Update Available: \(version)", action: #selector(openUpdatePage), keyEquivalent: ""
-        )
-        item.target = self
-        Self.styleOption(item)
-        menu.insertItem(item, at: 0)
+        let row = item(title: "Update Available: \(version)", action: #selector(openUpdatePage))
+        menu.insertItem(row, at: 0)
         menu.insertItem(.separator(), at: 1)
-        updateItem = item
+        updateItem = row
     }
 
-    /// A slider that snaps to the offered opacities.
-    ///
-    /// The stops aren't evenly spaced, so AppKit's tick marks can't do this:
-    /// they'd land on quarters of the range. The action rounds to the nearest
-    /// offered value instead.
-    private func makeOpacityRow() -> NSView {
-        opacitySlider.minValue = Settings.opacityChoices.first ?? 0
-        opacitySlider.maxValue = Settings.opacityChoices.last ?? 1
-        opacitySlider.isContinuous = true
-        opacitySlider.controlSize = .small
-        opacitySlider.target = self
-        opacitySlider.action = #selector(changeOpacity)
-        opacitySlider.doubleValue = settings.backdropOpacity
-
-        let row = NSView(frame: NSRect(x: 0, y: 0, width: 160, height: 26))
-        opacitySlider.frame = NSRect(x: 21, y: 4, width: 118, height: 18)
-        opacitySlider.autoresizingMask = [.width]
-        row.addSubview(opacitySlider)
-        row.autoresizingMask = [.width]
-        return row
-    }
-
-    /// A divider plus a heading, so the groups read as groups.
-    ///
-    /// The heading is a view rather than a title, which is the only way to get
-    /// all three of: full contrast, no hover highlight, and no click. A
-    /// disabled title row is grayed out by AppKit, and an enabled one
-    /// highlights and takes clicks. AppKit neither dims nor highlights a view
-    /// it doesn't draw, so a disabled item with a view gets every part right.
-    ///
-    /// It also isn't `NSMenuItem.sectionHeader(title:)`, which carries Apple's
-    /// styling but fixes the font size smaller than wanted here.
-    private func addSection(to menu: NSMenu, titled title: String) {
-        menu.addItem(.separator())
-
-        let header = NSMenuItem()
-        header.view = SectionHeaderView(title: title.uppercased())
-        header.isEnabled = false
-        menu.addItem(header)
-    }
-
-    /// Marks one item in a mutually exclusive group.
-    ///
-    /// Uses AppKit's own state column. Right aligning the checkmarks instead
-    /// means a tab stop, and tab stops are measured inside the title's text
-    /// area, which is narrower than the menu and inset from its left edge, so
-    /// a stop near the menu's right edge overshoots and AppKit clamps it
-    /// differently per row. Doing it properly would mean custom drawn rows and
-    /// giving up the system's menu styling.
-    private func check(_ items: [NSMenuItem], at index: Int?) {
-        for (offset, item) in items.enumerated() {
-            item.state = offset == index ? .on : .off
-        }
+    private func item(title: String, action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        return item
     }
 
     // MARK: - Actions
 
-    @objc private func changePlacement(_ sender: NSMenuItem) {
-        settings.placement = Settings.Placement.allCases[sender.tag]
+    @objc private func handleOpenSettings() {
+        openSettings()
+    }
+
+    @objc private func handleCheckForUpdates() {
+        checkForUpdates()
     }
 
     @objc private func openUpdatePage() {
@@ -250,233 +89,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         NSWorkspace.shared.open(updatePage)
     }
 
-    @objc private func changeOpacity() {
-        let dragged = opacitySlider.doubleValue
-        guard let snapped = Settings.opacityChoices.min(by: {
-            abs($0 - dragged) < abs($1 - dragged)
-        }) else { return }
-
-        opacitySlider.doubleValue = snapped
-        settings.backdropOpacity = snapped
-    }
-
-    @objc private func changeDuration(_ sender: NSMenuItem) {
-        settings.visibleDuration = Settings.durationChoices[sender.tag]
-    }
-
-    @objc private func changeFeedbackMode(_ sender: NSMenuItem) {
-        settings.feedbackMode = Settings.FeedbackMode.allCases[sender.tag]
-    }
-
-    @objc private func toggleVolumeKeys() {
-        settings.handlesVolumeKeys.toggle()
-    }
-
-    @objc private func toggleBrightnessKeys() {
-        settings.handlesBrightnessKeys.toggle()
-    }
-
-    /// Clicking a control inside a menu item's view doesn't dismiss the menu,
-    /// since AppKit only does that for rows it handles itself.
-    private func dismissMenu() {
-        statusItem.menu?.cancelTracking()
-    }
-}
-
-/// A section heading. A view rather than a menu item title, so it keeps full
-/// contrast without becoming hoverable or clickable.
-@MainActor
-private final class SectionHeaderView: NSView {
-    private let label = NSTextField(labelWithString: "")
-
-    private enum Metrics {
-        /// Matches the inset AppKit gives a menu item's title, so headings line
-        /// up with the rows under them.
-        static let leadingInset: CGFloat = 21
-        static let topPadding: CGFloat = 5
-        static let bottomPadding: CGFloat = 3
-    }
-
-    init(title: String) {
-        super.init(frame: .zero)
-        label.stringValue = title
-        label.font = .systemFont(ofSize: 12, weight: .semibold)
-        label.textColor = .labelColor
-        addSubview(label)
-        autoresizingMask = [.width]
-        frame = NSRect(origin: .zero, size: intrinsicContentSize)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(
-            width: Metrics.leadingInset + label.fittingSize.width,
-            height: label.fittingSize.height + Metrics.topPadding + Metrics.bottomPadding
-        )
-    }
-
-    override func layout() {
-        super.layout()
-        let size = label.fittingSize
-        label.frame = NSRect(
-            x: Metrics.leadingInset,
-            y: Metrics.bottomPadding,
-            width: size.width,
-            height: size.height
-        )
-    }
-}
-
-/// The menu's footer: Settings and Quit side by side, each in its own capsule.
-///
-/// These are buttons in a view rather than menu rows because a row is always
-/// the full width of the menu, so two of them can't share a line.
-@MainActor
-private final class MenuFooterView: NSView {
-    private let settingsTile: FooterTile
-    private let quitTile: FooterTile
-
-    private enum Metrics {
-        /// Matches the inset AppKit gives a menu item's title.
-        static let leadingInset: CGFloat = 18
-        static let trailingInset: CGFloat = 14
-        static let height: CGFloat = 40
-    }
-
-    init(onSettings: @escaping () -> Void, onQuit: @escaping () -> Void) {
-        settingsTile = FooterTile(title: "Settings", onClick: onSettings)
-        quitTile = FooterTile(title: "Quit", onClick: onQuit)
-        super.init(frame: .zero)
-
-        addSubview(settingsTile)
-        addSubview(quitTile)
-        autoresizingMask = [.width]
-        frame = NSRect(origin: .zero, size: intrinsicContentSize)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(
-            width: Metrics.leadingInset + settingsTile.intrinsicContentSize.width + 12
-                + quitTile.intrinsicContentSize.width + Metrics.trailingInset,
-            height: Metrics.height
-        )
-    }
-
-    override func layout() {
-        super.layout()
-
-        let settingsSize = settingsTile.intrinsicContentSize
-        settingsTile.frame = NSRect(
-            x: Metrics.leadingInset,
-            y: (bounds.height - settingsSize.height) / 2,
-            width: settingsSize.width,
-            height: settingsSize.height
-        )
-
-        let quitSize = quitTile.intrinsicContentSize
-        quitTile.frame = NSRect(
-            x: bounds.maxX - Metrics.trailingInset - quitSize.width,
-            y: (bounds.height - quitSize.height) / 2,
-            width: quitSize.width,
-            height: quitSize.height
-        )
-    }
-}
-
-/// A rounded tile with a label, drawn rather than bezeled.
-///
-/// `NSButton` with `.inline` was the obvious choice, but that bezel style
-/// draws its own text color and sizes itself to its title, so neither white
-/// text nor extra padding survived. Drawing the tile means both are exact.
-@MainActor
-private final class FooterTile: NSView {
-    private let label = NSTextField(labelWithString: "")
-    private let onClick: () -> Void
-    private var isHovered = false
-
-    private enum Metrics {
-        static let paddingX: CGFloat = 12
-        static let paddingY: CGFloat = 6
-        static let cornerRadius: CGFloat = 7
-        /// Subtle on a dark menu, and a touch brighter under the pointer.
-        static let restingAlpha: CGFloat = 0.10
-        static let hoveredAlpha: CGFloat = 0.20
-    }
-
-    init(title: String, onClick: @escaping () -> Void) {
-        self.onClick = onClick
-        super.init(frame: .zero)
-
-        label.stringValue = title
-        label.font = .systemFont(ofSize: 12, weight: .medium)
-        label.textColor = .labelColor
-        addSubview(label)
-
-        wantsLayer = true
-        layer?.cornerRadius = Metrics.cornerRadius
-        layer?.cornerCurve = .continuous
-        updateFill()
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    override var intrinsicContentSize: NSSize {
-        let text = label.fittingSize
-        return NSSize(
-            width: text.width + Metrics.paddingX * 2,
-            height: text.height + Metrics.paddingY * 2
-        )
-    }
-
-    override func layout() {
-        super.layout()
-        let text = label.fittingSize
-        label.frame = NSRect(
-            x: (bounds.width - text.width) / 2,
-            y: (bounds.height - text.height) / 2,
-            width: text.width,
-            height: text.height
-        )
-    }
-
-    // MARK: - Interaction
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        trackingAreas.forEach(removeTrackingArea)
-        addTrackingArea(NSTrackingArea(
-            rect: bounds,
-            options: [.mouseEnteredAndExited, .activeAlways],
-            owner: self
-        ))
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        isHovered = true
-        updateFill()
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        isHovered = false
-        updateFill()
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        // Only a click that ends inside the tile counts, matching how a button
-        // behaves when the pointer is dragged away before release.
-        let point = convert(event.locationInWindow, from: nil)
-        guard bounds.contains(point) else { return }
-        onClick()
-    }
-
-    private func updateFill() {
-        let alpha = isHovered ? Metrics.hoveredAlpha : Metrics.restingAlpha
-        layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(alpha).cgColor
+    @objc private func handleQuit() {
+        NSApp.terminate(nil)
     }
 }

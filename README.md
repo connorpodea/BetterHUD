@@ -57,17 +57,16 @@ within about a second. Input Monitoring is not required.
 
 ## Settings
 
-Everything is in the menu bar item, since each setting is a short list of
-choices. Opening at login is set during first launch setup, and afterwards from
-System Settings > General > Login Items.
+Open Settings from the menu bar item.
 
 | Setting | Choices |
 | --- | --- |
 | Position | Upper, Middle, Lower |
-| Show for | 1.0, 1.5, or 2.0 seconds |
+| Show For | 1.0, 1.5, or 2.0 seconds |
 | Opacity | Panel background at 0, 25, 50, 75, or 100 percent |
-| Take over | Volume and mute, Brightness, independently |
-| Volume click | System, Always, Never |
+| Volume Click | Never, System, Always |
+| Take Over | Volume and mute, Brightness, independently |
+| Open at Login | On or off |
 
 Turning off a key type hands those keys back to macOS. The app only swallows a
 key press it actually acted on, so anything you turn off behaves normally,

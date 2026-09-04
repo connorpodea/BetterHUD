@@ -116,6 +116,14 @@ final class SettingsWindowController: NSWindowController {
 
     // MARK: - Layout
 
+    /// Width every control is pinned to. Uniform width, with uniform segments
+    /// inside it, is what puts each control's middle segment exactly on the
+    /// window's centerline. Left to size themselves, "0%" is narrower than
+    /// "100%" and the middle segment drifts off center.
+    private static let controlWidth: CGFloat = 250
+    private static let contentInset: CGFloat = 24
+    private static let contentWidth: CGFloat = 500
+
     private func makeContentView() -> NSView {
         let icon = NSImageView()
         icon.image = NSApp.applicationIconImage
@@ -164,11 +172,11 @@ final class SettingsWindowController: NSWindowController {
         configure(feedbackControl, labels: Settings.FeedbackMode.allCases.map(\.menuTitle),
                   action: #selector(changeFeedbackMode))
 
-        configureCheckbox(volumeKeysCheckbox, title: "Volume and mute",
+        configureCheckbox(volumeKeysCheckbox, title: "Volume and Mute",
                           action: #selector(toggleVolumeKeys))
         configureCheckbox(brightnessKeysCheckbox, title: "Brightness",
                           action: #selector(toggleBrightnessKeys))
-        configureCheckbox(launchAtLoginCheckbox, title: "Open BetterHUD at login",
+        configureCheckbox(launchAtLoginCheckbox, title: "Open BetterHUD at Login",
                           action: #selector(toggleLaunchAtLogin))
 
         let keysStack = NSStackView(views: [volumeKeysCheckbox, brightnessKeysCheckbox])
@@ -180,34 +188,12 @@ final class SettingsWindowController: NSWindowController {
         configureButton(updateButton, title: "Check for Updates",
                         action: #selector(checkForUpdates))
 
-        let updateRow = NSStackView(views: [updateLabel])
-        updateRow.orientation = .horizontal
-        updateRow.spacing = 10
-
-        let grid = NSGridView(views: [
-            [label("Position:"), placementControl],
-            [label("Show for:"), durationControl],
-            [label("Opacity:"), opacityControl],
-            [label("Take over:"), keysStack],
-            [label("Volume click:"), feedbackControl],
-        ])
-        grid.rowSpacing = 10
-        grid.columnSpacing = 10
-        // Leading, so the rows line up with the section headings above them
-        // rather than floating in the middle of the window.
-        grid.column(at: 0).xPlacement = .leading
-
-        // One consistent control width, so the second column reads as a column.
-        for control in [durationControl, opacityControl, feedbackControl] {
-            control.widthAnchor.constraint(equalTo: placementControl.widthAnchor).isActive = true
-        }
-
         let done = NSButton(title: "Done", target: self, action: #selector(finish))
         done.bezelStyle = .rounded
         done.keyEquivalent = "\r"
 
         // The spacer carries the slack, so the update button stays left and
-        // Done stays right however wide the window is.
+        // Done stays right.
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         updateButton.setContentHuggingPriority(.defaultHigh, for: .horizontal)
@@ -221,17 +207,24 @@ final class SettingsWindowController: NSWindowController {
             separator(),
             sectionLabel("Permission"), permissionRow, permissionButton,
             separator(),
-            sectionLabel("HUD"), grid,
+            sectionLabel("HUD"),
+            row("Position:", placementControl),
+            row("Show For:", durationControl),
+            row("Opacity:", opacityControl),
+            row("Volume Click:", feedbackControl),
+            row("Take Over:", keysStack),
             separator(),
             sectionLabel("Startup"), launchAtLoginCheckbox,
             separator(),
-            sectionLabel("Updates"), updateRow,
+            updateLabel,
             footer,
         ])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
-        stack.edgeInsets = NSEdgeInsets(top: 22, left: 24, bottom: 18, right: 24)
+        stack.edgeInsets = NSEdgeInsets(
+            top: 22, left: Self.contentInset, bottom: 18, right: Self.contentInset
+        )
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         let container = NSView()
@@ -243,9 +236,30 @@ final class SettingsWindowController: NSWindowController {
             stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             icon.widthAnchor.constraint(equalToConstant: 52),
             icon.heightAnchor.constraint(equalToConstant: 52),
-            blurb.widthAnchor.constraint(lessThanOrEqualToConstant: 340),
-            permissionLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 380),
-            footer.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
+            blurb.widthAnchor.constraint(lessThanOrEqualToConstant: 380),
+            permissionLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 420),
+            footer.widthAnchor.constraint(equalToConstant: Self.contentWidth),
+        ])
+        return container
+    }
+
+    /// A label on the left with its control centered on the window's
+    /// centerline, so every control lines up with every other one.
+    private func row(_ text: String, _ control: NSView) -> NSView {
+        let label = NSTextField(labelWithString: text)
+        let container = NSView()
+        container.addSubview(label)
+        container.addSubview(control)
+
+        label.translatesAutoresizingMaskIntoConstraints = false
+        control.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            container.widthAnchor.constraint(equalToConstant: Self.contentWidth),
+            label.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            label.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            control.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            control.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            container.heightAnchor.constraint(equalTo: control.heightAnchor),
         ])
         return container
     }
@@ -254,9 +268,12 @@ final class SettingsWindowController: NSWindowController {
         control.segmentCount = labels.count
         control.segmentStyle = .automatic
         control.trackingMode = .selectOne
+
+        // Every segment the same width, so the middle one is centered.
+        let segmentWidth = Self.controlWidth / CGFloat(labels.count)
         for (index, title) in labels.enumerated() {
             control.setLabel(title, forSegment: index)
-            control.setWidth(0, forSegment: index) // 0 means size to fit
+            control.setWidth(segmentWidth, forSegment: index)
         }
         control.target = self
         control.action = action
@@ -276,10 +293,6 @@ final class SettingsWindowController: NSWindowController {
         checkbox.action = action
     }
 
-    private func label(_ text: String) -> NSTextField {
-        NSTextField(labelWithString: text)
-    }
-
     private func sectionLabel(_ text: String) -> NSTextField {
         let field = NSTextField(labelWithString: text.uppercased())
         field.font = .systemFont(ofSize: 10, weight: .semibold)
@@ -290,6 +303,7 @@ final class SettingsWindowController: NSWindowController {
     private func separator() -> NSBox {
         let box = NSBox()
         box.boxType = .separator
+        box.widthAnchor.constraint(equalToConstant: Self.contentWidth).isActive = true
         return box
     }
 
