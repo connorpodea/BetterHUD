@@ -237,11 +237,13 @@ private final class MenuHeaderView: NSView {
         /// Matches the inset AppKit gives a menu item's title, so the header
         /// lines up with the rows below it.
         static let leadingInset: CGFloat = 21
-        static let trailingInset: CGFloat = 12
+        static let trailingInset: CGFloat = 8
         static let verticalPadding: CGFloat = 7
         /// Space between the two lines of text.
         static let lineSpacing: CGFloat = 4
-        static let iconSize: CGFloat = 30
+        /// Between the text and the icon.
+        static let iconGap: CGFloat = 8
+        static let iconSize: CGFloat = 26
     }
 
     init() {
@@ -281,7 +283,7 @@ private final class MenuHeaderView: NSView {
             + statusLabel.fittingSize.height
 
         return NSSize(
-            width: Metrics.leadingInset + textWidth + 12 + Metrics.iconSize
+            width: Metrics.leadingInset + textWidth + Metrics.iconGap + Metrics.iconSize
                 + Metrics.trailingInset,
             height: max(textHeight, Metrics.iconSize) + Metrics.verticalPadding * 2
         )
