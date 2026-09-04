@@ -4,8 +4,9 @@ import AppKit
 /// settings UI.
 ///
 /// Everything lives here rather than in a settings window: each preference is a
-/// short list of choices, which a submenu of checkmarked items expresses
-/// directly, with no window to place, size, or manage.
+/// short list of choices, so the menu lays them out as flat labelled sections
+/// with checkmarks — every option visible at a glance, nothing to place, size,
+/// or manage.
 @MainActor
 final class StatusBarController: NSObject, NSMenuDelegate {
     private let settings: Settings
@@ -55,11 +56,15 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(statusLine)
         menu.addItem(.separator())
 
+        // One selectable option per section, except Take Over, where any
+        // combination is valid.
+        addSection(to: menu, titled: "Position")
         placementItems = Settings.Placement.allCases.enumerated().map { index, placement in
             item(title: placement.title, tag: index, action: #selector(changePlacement(_:)))
         }
-        menu.addItem(submenu(titled: "Position", items: placementItems))
+        placementItems.forEach(menu.addItem)
 
+        addSection(to: menu, titled: "Show For")
         durationItems = Settings.durationChoices.enumerated().map { index, duration in
             item(
                 title: String(format: "%.1f seconds", duration),
@@ -67,25 +72,24 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                 action: #selector(changeDuration(_:))
             )
         }
-        menu.addItem(submenu(titled: "Duration", items: durationItems))
+        durationItems.forEach(menu.addItem)
 
+        addSection(to: menu, titled: "Take Over")
+        for (item, action) in [
+            (volumeKeysItem, #selector(toggleVolumeKeys)),
+            (brightnessKeysItem, #selector(toggleBrightnessKeys)),
+        ] {
+            item.target = self
+            item.action = action
+            item.indentationLevel = 1
+            menu.addItem(item)
+        }
+
+        addSection(to: menu, titled: "Volume Click")
         feedbackItems = Settings.FeedbackMode.allCases.enumerated().map { index, mode in
             item(title: mode.menuTitle, tag: index, action: #selector(changeFeedbackMode(_:)))
         }
-        menu.addItem(submenu(titled: "Volume Click", items: feedbackItems))
-
-        volumeKeysItem.target = self
-        volumeKeysItem.action = #selector(toggleVolumeKeys)
-        brightnessKeysItem.target = self
-        brightnessKeysItem.action = #selector(toggleBrightnessKeys)
-        let footnote = NSMenuItem(
-            title: "Keys turned off are left to macOS", action: nil, keyEquivalent: ""
-        )
-        footnote.isEnabled = false
-        menu.addItem(submenu(
-            titled: "Take Over",
-            items: [volumeKeysItem, brightnessKeysItem, .separator(), footnote]
-        ))
+        feedbackItems.forEach(menu.addItem)
 
         menu.addItem(.separator())
         launchAtLoginItem.target = self
@@ -126,15 +130,24 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.tag = tag
         item.target = self
+        item.indentationLevel = 1
         return item
     }
 
-    private func submenu(titled title: String, items: [NSMenuItem]) -> NSMenuItem {
-        let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        let submenu = NSMenu()
-        items.forEach(submenu.addItem)
-        parent.submenu = submenu
-        return parent
+    /// A separator plus a small, dimmed heading, so the sections read as
+    /// groups rather than one long list.
+    private func addSection(to menu: NSMenu, titled title: String) {
+        menu.addItem(.separator())
+        let header = NSMenuItem()
+        header.attributedTitle = NSAttributedString(
+            string: title.uppercased(),
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 10, weight: .semibold),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ]
+        )
+        header.isEnabled = false
+        menu.addItem(header)
     }
 
     /// Marks one item in a mutually exclusive group.
