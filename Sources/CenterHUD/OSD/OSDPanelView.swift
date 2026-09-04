@@ -15,8 +15,14 @@ final class OSDPanelView: NSView {
         static let segmentCount = 16
         static let segmentWidth: CGFloat = 8
         static let segmentHeight: CGFloat = 8
-        static let segmentGap: CGFloat = 2
-        static let segmentCornerRadius: CGFloat = 2
+        /// A hairline gap, so the cells read as one divided bar rather than a
+        /// row of floating pills. The gap shows the backdrop through as a
+        /// separator line.
+        static let segmentGap: CGFloat = 1
+        /// Cells are square; only the bar's outer ends are rounded, which the
+        /// container's corner radius takes care of by clipping.
+        static let segmentCornerRadius: CGFloat = 0
+        static let barCornerRadius: CGFloat = 2.5
         static let barBottomInset: CGFloat = 34
 
         static var barWidth: CGFloat {
@@ -100,6 +106,10 @@ final class OSDPanelView: NSView {
 
     private func setUpLevelBar() {
         levelBarView.wantsLayer = true
+        // Clipping rounds the bar's outer ends while leaving the interior cell
+        // edges square.
+        levelBarView.layer?.cornerRadius = Metrics.barCornerRadius
+        levelBarView.layer?.masksToBounds = true
         levelBarView.frame = NSRect(
             x: (Self.size.width - Metrics.barWidth) / 2,
             y: Metrics.barBottomInset,

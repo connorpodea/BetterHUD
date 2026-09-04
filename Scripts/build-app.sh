@@ -1,28 +1,52 @@
 #!/usr/bin/env bash
 #
-# Assembles dist/CenterHUD.app from the release binary and ad-hoc codesigns it.
+# Assembles dist/CenterHUD.app from the release binary and signs it.
 #
-# Ad-hoc signing is for local testing only. Its identity changes on every
-# rebuild, so macOS may drop the Accessibility / Input Monitoring grant and
-# require re-toggling. Notarized distribution needs a Developer ID identity
-# (see CLAUDE.md).
+# Signing identity matters more than usual here. An ad-hoc signature's
+# designated requirement is the binary's own cdhash, so every rebuild looks
+# like a different app to macOS and the Accessibility grant is silently
+# dropped. Signing with a certificate yields a requirement of the form
+#   identifier "com.connorpodea.centerhud" and certificate leaf = H"..."
+# which is stable across rebuilds, so the grant survives.
+#
+# "CenterHUD Dev" is a locally generated, locally trusted code-signing cert
+# (see CLAUDE.md). Shipping to other machines still needs a Developer ID
+# certificate and notarization.
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 APP_NAME="CenterHUD"
-BUNDLE="dist/${APP_NAME}.app"
+# The app is built outside the repo on purpose. This project lives under
+# ~/Desktop, which iCloud syncs, and the file provider continually re-adds
+# com.apple.FinderInfo to the bundle — which codesign rejects as "resource
+# fork, Finder information, or similar detritus". ~/Applications is not synced,
+# and is where the app should live for everyday use anyway.
+INSTALL_DIR="${CENTERHUD_INSTALL_DIR:-${HOME}/Applications}"
+BUNDLE="${INSTALL_DIR}/${APP_NAME}.app"
+SIGN_IDENTITY="${CENTERHUD_SIGN_IDENTITY:-CenterHUD Dev}"
 
 swift build -c release
 BIN_PATH="$(swift build -c release --show-bin-path)/${APP_NAME}"
 
 rm -rf "${BUNDLE}"
+mkdir -p "${INSTALL_DIR}"
 mkdir -p "${BUNDLE}/Contents/MacOS"
 cp "${BIN_PATH}" "${BUNDLE}/Contents/MacOS/${APP_NAME}"
 cp Resources/Info.plist "${BUNDLE}/Contents/Info.plist"
 printf 'APPL????' > "${BUNDLE}/Contents/PkgInfo"
 
-codesign --force --options runtime --sign - "${BUNDLE}"
+# Extended attributes picked up along the way make codesign refuse the bundle.
+xattr -cr "${BUNDLE}"
+
+if security find-identity -v -p codesigning | grep -qF "${SIGN_IDENTITY}"; then
+    codesign --force --options runtime --sign "${SIGN_IDENTITY}" "${BUNDLE}"
+else
+    echo "warning: '${SIGN_IDENTITY}' not found; falling back to ad-hoc." >&2
+    echo "         Accessibility permission will reset on every rebuild." >&2
+    codesign --force --options runtime --sign - "${BUNDLE}"
+fi
 
 echo "Built ${BUNDLE}"
+codesign -d -r- "${BUNDLE}" 2>&1 | tail -1
