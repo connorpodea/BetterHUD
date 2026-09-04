@@ -13,6 +13,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private let statusItem: NSStatusItem
     private let opacitySlider = NSSlider()
+    /// Added to the top of the menu only when a newer release exists.
+    private var updateItem: NSMenuItem?
+    private var updatePage: URL?
 
     private var placementItems: [NSMenuItem] = []
     private var durationItems: [NSMenuItem] = []
@@ -51,6 +54,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         // disables anything with no action and draws it dimmed, which would
         // gray out the title.
         menu.autoenablesItems = false
+
+        // The update row is inserted at the top later, if one is found.
 
         // One selectable option per section, except Take Over, where any
         // combination is valid.
@@ -152,6 +157,22 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         item.setAccessibilityTitle(text)
     }
 
+    /// Shows a row linking to a newer release. Nothing appears unless one
+    /// exists, so the menu stays as it is for anyone up to date.
+    func showUpdate(version: String, page: URL) {
+        guard updateItem == nil, let menu = statusItem.menu else { return }
+        updatePage = page
+
+        let item = NSMenuItem(
+            title: "Update Available: \(version)", action: #selector(openUpdatePage), keyEquivalent: ""
+        )
+        item.target = self
+        Self.styleOption(item)
+        menu.insertItem(item, at: 0)
+        menu.insertItem(.separator(), at: 1)
+        updateItem = item
+    }
+
     /// A slider that snaps to the offered opacities.
     ///
     /// The stops aren't evenly spaced, so AppKit's tick marks can't do this:
@@ -211,6 +232,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func changePlacement(_ sender: NSMenuItem) {
         settings.placement = Settings.Placement.allCases[sender.tag]
+    }
+
+    @objc private func openUpdatePage() {
+        guard let updatePage else { return }
+        NSWorkspace.shared.open(updatePage)
     }
 
     @objc private func changeOpacity() {

@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let brightnessController = BrightnessController()
     private let feedbackSound = VolumeFeedbackSound()
     private let permissions = PermissionManager()
+    private let updateChecker = UpdateChecker()
     private lazy var osdController = OSDController(settings: settings)
 
     private lazy var mediaKeyTap = MediaKeyTap { [weak self] event in
@@ -30,6 +31,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.installTapIfPossible()
             self?.setupWindowController.refresh()
         }
+
+        updateChecker.onUpdateFound = { [weak self] release in
+            self?.statusBar?.showUpdate(version: release.version, page: release.page)
+        }
+        // Throttled to once a day, so this is not a request on every launch.
+        updateChecker.checkIfDue()
 
         installTapIfPossible()
 
