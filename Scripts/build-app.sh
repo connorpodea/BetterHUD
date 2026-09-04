@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
-# Assembles dist/CenterHUD.app from the release binary and signs it.
+# Assembles dist/BetterHUD.app from the release binary and signs it.
 #
 # Signing identity matters more than usual here. An ad-hoc signature's
 # designated requirement is the binary's own cdhash, so every rebuild looks
 # like a different app to macOS and the Accessibility grant is silently
 # dropped. Signing with a certificate yields a requirement of the form
-#   identifier "com.connorpodea.centerhud" and certificate leaf = H"..."
+#   identifier "com.connorpodea.betterhud" and certificate leaf = H"..."
 # which is stable across rebuilds, so the grant survives.
 #
 # "CenterHUD Dev" is a locally generated, locally trusted code-signing cert
@@ -17,15 +17,18 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-APP_NAME="CenterHUD"
+APP_NAME="BetterHUD"
 # The app is built outside the repo on purpose. This project lives under
 # ~/Desktop, which iCloud syncs, and the file provider continually re-adds
 # com.apple.FinderInfo to the bundle — which codesign rejects as "resource
 # fork, Finder information, or similar detritus". ~/Applications is not synced,
 # and is where the app should live for everyday use anyway.
-INSTALL_DIR="${CENTERHUD_INSTALL_DIR:-${HOME}/Applications}"
+INSTALL_DIR="${BETTERHUD_INSTALL_DIR:-${HOME}/Applications}"
 BUNDLE="${INSTALL_DIR}/${APP_NAME}.app"
-SIGN_IDENTITY="${CENTERHUD_SIGN_IDENTITY:-CenterHUD Dev}"
+# The local cert is still named "CenterHUD Dev" from before the rename.
+# Renaming the app doesn't require a new certificate, and regenerating one
+# would mean re-trusting it in the keychain for no benefit.
+SIGN_IDENTITY="${BETTERHUD_SIGN_IDENTITY:-CenterHUD Dev}"
 
 swift build -c release
 BIN_PATH="$(swift build -c release --show-bin-path)/${APP_NAME}"

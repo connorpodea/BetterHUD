@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "CenterHUD",
+    name: "BetterHUD",
     platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
-            name: "CenterHUD",
-            path: "Sources/CenterHUD"
+            name: "BetterHUD",
+            path: "Sources/BetterHUD"
         )
     ]
 )

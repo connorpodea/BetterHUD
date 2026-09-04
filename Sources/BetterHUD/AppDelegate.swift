@@ -4,7 +4,7 @@ import os
 /// Owns the app's pieces and routes intercepted keys to the right controller.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let log = Logger(subsystem: "com.connorpodea.centerhud", category: "app")
+    private let log = Logger(subsystem: "com.connorpodea.betterhud", category: "app")
 
     private let volumeController = VolumeController()
     private let brightnessController = BrightnessController()

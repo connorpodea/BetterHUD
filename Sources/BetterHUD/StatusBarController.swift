@@ -36,7 +36,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         // centered inset reads as "a panel in the middle of the screen".
         let icon = NSImage(
             systemSymbolName: "rectangle.center.inset.filled",
-            accessibilityDescription: "CenterHUD"
+            accessibilityDescription: "BetterHUD"
         )
         icon?.isTemplate = true
         button.image = icon
@@ -55,7 +55,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
         let quit = NSMenuItem(
-            title: "Quit CenterHUD",
+            title: "Quit BetterHUD",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )

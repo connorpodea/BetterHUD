@@ -7,15 +7,15 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleName</key>
-	<string>CenterHUD</string>
+	<string>BetterHUD</string>
 	<key>CFBundleDisplayName</key>
-	<string>CenterHUD</string>
+	<string>BetterHUD</string>
 	<key>CFBundleExecutable</key>
-	<string>CenterHUD</string>
+	<string>BetterHUD</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.connorpodea.centerhud</string>
+	<string>com.connorpodea.betterhud</string>
 	<key>CFBundleShortVersionString</key>
 	<string>0.1.0</string>
 	<key>CFBundleVersion</key>
