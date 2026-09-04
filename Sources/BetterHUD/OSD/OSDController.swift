@@ -40,7 +40,6 @@ final class OSDController {
     // MARK: - Presentation
 
     private func show(icon: NSImage?, level: Float) {
-        window.panel.apply(style: settings.style)
         window.panel.update(icon: icon, level: level)
 
         if !window.isVisible {

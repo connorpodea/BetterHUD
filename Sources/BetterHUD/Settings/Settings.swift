@@ -25,31 +25,6 @@ final class Settings {
         }
     }
 
-    /// How the HUD's background is drawn.
-    enum Style: String, CaseIterable {
-        /// The frosted panel the old macOS HUD used.
-        case basic
-        /// The macOS 26 glass material.
-        case liquidGlass
-
-        var title: String {
-            switch self {
-            case .basic: "Basic"
-            case .liquidGlass: "Liquid Glass"
-            }
-        }
-    }
-
-    /// Liquid Glass needs macOS 26, so on anything older there is only one
-    /// style and the menu leaves the section out.
-    static var availableStyles: [Style] {
-        if #available(macOS 26.0, *) {
-            Style.allCases
-        } else {
-            [.basic]
-        }
-    }
-
     /// Whether to play the click that macOS normally makes on a volume change.
     enum FeedbackMode: String, CaseIterable {
         /// Honor System Settings → Sound → "Play feedback when volume is changed".
@@ -70,7 +45,6 @@ final class Settings {
 
     private enum Key {
         static let placement = "hudPlacement"
-        static let style = "hudStyle"
         static let visibleDuration = "hudVisibleDuration"
         static let handlesVolumeKeys = "handlesVolumeKeys"
         static let handlesBrightnessKeys = "handlesBrightnessKeys"
@@ -88,7 +62,6 @@ final class Settings {
         // absent from the plist and can be changed later without migration.
         defaults.register(defaults: [
             Key.placement: Placement.center.rawValue,
-            Key.style: Style.basic.rawValue,
             Key.visibleDuration: 1.5,
             Key.handlesVolumeKeys: true,
             Key.handlesBrightnessKeys: true,
@@ -99,11 +72,6 @@ final class Settings {
     var placement: Placement {
         get { Placement(rawValue: defaults.string(forKey: Key.placement) ?? "") ?? .center }
         set { defaults.set(newValue.rawValue, forKey: Key.placement) }
-    }
-
-    var style: Style {
-        get { Style(rawValue: defaults.string(forKey: Key.style) ?? "") ?? .basic }
-        set { defaults.set(newValue.rawValue, forKey: Key.style) }
     }
 
     var visibleDuration: TimeInterval {

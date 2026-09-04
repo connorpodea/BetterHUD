@@ -18,7 +18,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let launchAtLoginItem = NSMenuItem(title: "Open at Login", action: nil, keyEquivalent: "")
 
     private var placementItems: [NSMenuItem] = []
-    private var styleItems: [NSMenuItem] = []
     private var durationItems: [NSMenuItem] = []
     private var feedbackItems: [NSMenuItem] = []
     private let volumeKeysItem = NSMenuItem(title: "Volume and Mute", action: nil, keyEquivalent: "")
@@ -63,15 +62,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             item(title: placement.title, tag: index, action: #selector(changePlacement(_:)))
         }
         placementItems.forEach(menu.addItem)
-
-        // Only worth a section when there's a choice, which means macOS 26.
-        if Settings.availableStyles.count > 1 {
-            addSection(to: menu, titled: "Style")
-            styleItems = Settings.availableStyles.enumerated().map { index, style in
-                item(title: style.title, tag: index, action: #selector(changeStyle(_:)))
-            }
-            styleItems.forEach(menu.addItem)
-        }
 
         addSection(to: menu, titled: "Show For")
         durationItems = Settings.durationChoices.enumerated().map { index, duration in
@@ -123,7 +113,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         )
 
         check(placementItems, at: Settings.Placement.allCases.firstIndex(of: settings.placement))
-        check(styleItems, at: Settings.availableStyles.firstIndex(of: settings.style))
         check(durationItems, at: Settings.durationChoices.firstIndex(of: settings.visibleDuration))
         check(feedbackItems, at: Settings.FeedbackMode.allCases.firstIndex(of: settings.feedbackMode))
 
@@ -159,10 +148,18 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         return item
     }
 
-    /// A separator plus a small, dimmed heading, so the sections read as
-    /// groups rather than one long list. Headings are the only unchecked rows,
-    /// which keeps every checkmark in a single column.
+    /// Groups the rows under a heading.
+    ///
+    /// AppKit's own section headers carry Apple's styling and are meant to be
+    /// used without separators, which is both tidier and shorter than a
+    /// separator plus a hand-styled row. Older systems get the hand-styled
+    /// version.
     private func addSection(to menu: NSMenu, titled title: String) {
+        if #available(macOS 14.0, *) {
+            menu.addItem(.sectionHeader(title: title))
+            return
+        }
+
         menu.addItem(.separator())
         let header = NSMenuItem()
         header.attributedTitle = NSAttributedString(
@@ -194,10 +191,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func changePlacement(_ sender: NSMenuItem) {
         settings.placement = Settings.Placement.allCases[sender.tag]
-    }
-
-    @objc private func changeStyle(_ sender: NSMenuItem) {
-        settings.style = Settings.availableStyles[sender.tag]
     }
 
     @objc private func changeDuration(_ sender: NSMenuItem) {
