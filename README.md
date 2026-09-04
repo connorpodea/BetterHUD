@@ -8,7 +8,7 @@ bring it back. While BetterHUD is running, the new indicator doesn't show up at
 all.
 
 <p align="center">
-  <img src="docs/brightness.png" width="49%" alt="The brightness HUD"><img src="docs/volume.png" width="49%" alt="The volume HUD">
+  <img src="docs/brightness.png" width="32.66%" alt="The brightness HUD"><img src="docs/mute.png" width="32.66%" alt="The mute HUD"><img src="docs/volume.png" width="32.66%" alt="The volume HUD">
 </p>
 <p align="center">
   <img src="docs/settings.png" width="98%" alt="The settings window">
