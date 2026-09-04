@@ -1,153 +1,156 @@
 # BetterHUD
 
-**Version 0.0.1 (September 4, 2026)**
+**Version 0.0.2 (September 4, 2026)**
 
-macOS 26 replaced the centered volume and brightness HUD with a small indicator
-in the corner of the screen. BetterHUD brings the centered panel back, and stops
-the new indicator from appearing while it runs.
+macOS 26 changed the volume and brightness HUD to a small indicator in the
+corner of the screen. I liked the old centered one better, so I wrote this to
+bring it back. While BetterHUD is running, the new indicator doesn't show up at
+all.
 
 <p align="center">
   <img src="docs/volume.png" width="46%" alt="The volume HUD">
   <img src="docs/brightness.png" width="46%" alt="The brightness HUD">
 </p>
 
-## Features
+## What it does
 
-* Centered 200pt panel with a 16 segment level bar, matching the old design
-* Uses the OSD artwork that ships with macOS, so the glyphs are the real ones
-* Controls volume, mute, and built in display brightness in steps of 1/16, the
-  same increment the hardware keys use
-* Plays the volume click that macOS normally makes, following your system
-  setting for it
-* Lives in the menu bar with no Dock icon and no windows
-* Guides you through the one permission it needs the first time you launch it
+* Shows the old centered panel with the 16 segment bar
+* Uses the HUD images that ship with macOS, so the icons are the real ones
+* Changes volume, mute, and the built in display's brightness in 1/16 steps,
+  same as the keys normally do
+* Plays the volume click if you have that turned on in System Settings, and
+  holding Shift flips it for one press
+* Lives in the menu bar with no Dock icon and no dependencies
+* Explains the one permission it needs the first time you open it
 
 ## Requirements
 
-* macOS 13 or later, developed and tested on macOS 26.6
-* A Mac with a built in display, for brightness control
-* Accessibility permission, described below
+* macOS 13 or later. I built and tested it on macOS 26.6
+* A Mac with a built in display, for the brightness part
+* Accessibility permission
 
-## Install
+## Installing
 
-1. Download the latest release and move `BetterHUD.app` to `/Applications` or
-   `~/Applications`.
-2. Open it. The first launch is blocked by Gatekeeper, since the app is not
-   notarized by Apple yet. Right click the app, choose **Open**, then confirm.
-   If you would rather do it from the terminal:
+1. Download the zip from the latest release and move `BetterHUD.app` into your
+   Applications folder.
+
+2. The first time you open it, macOS will block it. That's because I signed it
+   with a local certificate instead of paying for an Apple Developer account, so
+   Gatekeeper can't check who made it. Right click the app and pick **Open**,
+   then confirm. Or from the terminal:
 
    ```sh
    xattr -d com.apple.quarantine /Applications/BetterHUD.app
    ```
 
-   You only need this once. A copy you build yourself is not quarantined.
-3. A setup window explains what the app does and walks you through the
-   permission below.
+   You only need to do this once.
 
-### Granting Accessibility permission
+3. Open it. A window comes up explaining what it does and the permission it
+   needs.
+
+## Permission
 
 BetterHUD needs Accessibility permission so it can see the media keys before
-macOS does.
-
-1. Open **System Settings > Privacy & Security > Accessibility**
-2. Click **+**, add `BetterHUD.app`, and turn it on
-
-There is nothing to restart. The app notices the change and starts working
-within about a second. Input Monitoring is not required.
+macOS does. Go to **System Settings > Privacy & Security > Accessibility**, add
+`BetterHUD.app`, and turn it on. You don't need to restart anything, it notices
+within about a second. It does not need Input Monitoring.
 
 ## Settings
 
-Open Settings from the menu bar item.
+Click the menu bar item and pick Settings.
 
 | Setting | Choices |
 | --- | --- |
-| Position | Upper, Middle, Lower |
+| Position | Lower, Middle, Upper |
 | Show For | 1.0, 1.5, or 2.0 seconds |
 | Opacity | Panel background at 0, 25, 50, 75, or 100 percent |
 | Volume Click | Never, System, Always |
-| Take Over | Volume and mute, Brightness, independently |
+| Take Over | Volume and mute, Brightness, separately |
 | Open at Login | On or off |
 
-Turning off a key type hands those keys back to macOS. The app only swallows a
-key press it actually acted on, so anything you turn off behaves normally,
-including the system indicator.
-
-Holding Shift while pressing a volume key flips the click setting for that press,
-which is how the hardware keys behave.
+If you turn off one of the key types, those keys go back to working normally,
+including the macOS indicator. The app only swallows a key press it actually
+did something with.
 
 ## How it works
 
-macOS draws its own indicator when you press the hardware keys, and there is no
-API to turn that off. The only reliable approach is to make sure the process
-that draws it never receives the key press.
+macOS draws its own indicator when you press the keys, and there's no setting
+to turn that off. So instead of trying to hide it, BetterHUD catches the key
+press before the part of macOS that draws the indicator ever sees it.
 
-1. A `CGEventTap` listens for `NSSystemDefined` events at `.cghidEventTap`, the
-   lowest point in the event pipeline, before WindowServer hands events to
-   session level listeners. The tap is active rather than passive.
+1. It sets up a `CGEventTap` for `NSSystemDefined` events at `.cghidEventTap`,
+   which is the earliest point in the event pipeline, before WindowServer hands
+   events out to anything else.
 2. The callback returns `nil` for the volume, mute, and brightness keys, which
-   consumes them. Both key down and key up are swallowed, so no part of the
-   press gets through.
-3. Since the event is gone, BetterHUD changes the volume or brightness itself
-   and draws its own HUD.
+   throws them away. Key down and key up both get thrown away, so nothing
+   leaks through.
+3. Since the key press is gone, BetterHUD changes the volume or brightness
+   itself and draws its own HUD.
 
-Nothing polls. The event tap, a CoreAudio device listener, a display
-reconfiguration notification, and the accessibility change notification are the
-only things that wake the app. The auto hide timer is armed only while the HUD
-is visible, settings are read when a key is pressed rather than cached, and the
-menu updates its checkmarks only when it opens.
+Nothing polls in the background. The event tap, a CoreAudio listener, a display
+change notification, and an accessibility change notification are the only
+things that wake it up. The timer that hides the HUD only exists while the HUD
+is on screen.
 
-## Limitations
+## What it can't do
 
-These are design decisions, not oversights.
+* **External monitors.** Their brightness needs DDC/CI, which I haven't
+  implemented. Only the built in display works.
+* **Open without the Gatekeeper step**, until I get a Developer ID certificate
+  and notarize it.
+* **Keyboard backlight keys.** F5 and F6 still show the macOS indicator.
+* **Be on the Mac App Store.** Event taps aren't allowed in sandboxed apps, so
+  it has to be a direct download.
 
-* **Not sandboxed, so it cannot ship on the Mac App Store.** Event taps are not
-  allowed under the App Sandbox, so distribution is by direct download.
-* **Brightness relies on a private framework.** macOS has no public API for the
-  built in display's brightness, so `DisplayServicesGetBrightness` and
-  `DisplayServicesSetBrightness` are looked up with `dlsym`. If a future version
-  of macOS removes them, brightness stops working and the rest of the app
-  carries on.
-* **Built in display only.** External monitors need DDC/CI, which is out of
-  scope.
-* **Keyboard backlight keys are not handled yet.**
+## Where the artwork comes from
 
-## Artwork from macOS
-
-The HUD glyphs are read at runtime from
-`/System/Library/CoreServices/OSDUIHelper.app/Contents/Resources`. They are not
-copied into the app bundle or this repository, so no Apple artwork is
+The HUD icons are read at runtime from
+`/System/Library/CoreServices/OSDUIHelper.app/Contents/Resources`. They aren't
+copied into the app or this repo, so none of Apple's artwork is being
 redistributed. If those files ever disappear, the HUD falls back to SF Symbols.
 
-## Building from source
+## Building it yourself
 
 ```sh
-swift build -c release          # binary only
-./Scripts/build-app.sh          # assembles and signs BetterHUD.app
+swift build -c release          # just the binary
+./Scripts/build-app.sh          # builds and signs BetterHUD.app
 swift Scripts/make-icons.swift  # regenerates the app icon
 ```
 
+A copy you build yourself isn't quarantined, so you can skip the Gatekeeper
+step.
+
 The build script signs with a code signing certificate if it finds one, and
 falls back to ad hoc signing with a warning. This matters more than it sounds:
-an ad hoc signature ties the app's identity to the binary's hash, so every
-rebuild looks like a different app to macOS and quietly drops the Accessibility
-permission you granted. Point it at your own identity with
-`BETTERHUD_SIGN_IDENTITY="Your Certificate Name"`, and choose where the app is
-built with `BETTERHUD_INSTALL_DIR`.
+an ad hoc signature is tied to the binary's hash, so every rebuild looks like a
+different app to macOS and it drops the Accessibility permission you granted.
+Use `BETTERHUD_SIGN_IDENTITY="Your Certificate Name"` for your own identity, and
+`BETTERHUD_INSTALL_DIR` to change where the app gets built.
 
 ## Version history
+
+### 0.0.2 (September 4, 2026)
+
+* Added an opacity setting for the HUD panel, from solid down to no background
+* Moved all the settings into one window, which is also the first launch setup
+* Added an update check that looks at GitHub releases once a day, and a row in
+  the menu when there's a new version
+* Cut the menu down to Settings and Quit
+* Reordered Position to Lower, Middle, Upper and Volume Click to Never, System,
+  Always
+* Dropped the 3 second option for how long the HUD stays up
 
 ### 0.0.1 (September 4, 2026)
 
 First release.
 
-* Intercepts the volume, mute, and brightness keys at the HID level and
-  suppresses the macOS 26 indicator
-* Centered HUD panel using the OSD artwork from macOS, with a 16 segment bar
-* Volume, mute, and built in display brightness control
-* Volume click, following the system setting, flippable with Shift
-* First launch setup that reports permission state as it changes
-* Menu bar settings for position, duration, which keys to take over, volume
-  click, and opening at login
+* Catches the volume, mute, and brightness keys and stops the macOS 26
+  indicator from showing
+* Centered HUD using the artwork from macOS, with a 16 segment bar
+* Volume, mute, and built in display brightness
+* Volume click that follows the system setting
+* First launch setup showing the permission status
+* Menu bar settings
 
 ## Author
 
@@ -155,4 +158,4 @@ First release.
 
 ## License
 
-GPLv3. See [LICENSE](LICENSE).
+GPLv3.
