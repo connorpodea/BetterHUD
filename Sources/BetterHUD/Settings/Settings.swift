@@ -9,18 +9,20 @@ import Foundation
 final class Settings {
     /// Where the HUD is drawn. All three are horizontally centered; they
     /// differ only in height.
+    ///
+    /// Ordered bottom to top, which is how the choices are presented.
     enum Placement: String, CaseIterable {
-        case upper
-        /// Dead center, the default.
-        case center
         /// Low and centered, where macOS used to put it.
         case lower
+        /// Dead center, the default.
+        case center
+        case upper
 
         var title: String {
             switch self {
-            case .upper: "Upper"
-            case .center: "Middle"
             case .lower: "Lower"
+            case .center: "Middle"
+            case .upper: "Upper"
             }
         }
     }
