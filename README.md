@@ -16,6 +16,27 @@ never appears while it's running.
 - Handles volume, mute, and built-in display brightness
 - Plays the volume feedback click, honoring your system setting for it
 - Lives in the menu bar; no Dock icon, no window
+- Walks you through the one permission it needs on first launch
+
+## Settings
+
+Everything lives in the menu bar item, since each preference is a short list of
+choices that a submenu expresses directly:
+
+| Setting | Choices |
+| --- | --- |
+| Position | Upper, Middle, Lower |
+| Duration | 1.0, 1.5, 2.0, or 3.0 seconds |
+| Volume Click | Follow system setting, Always, Never |
+| Take Over | Volume and mute, Brightness — independently |
+| Open at Login | on/off, via `SMAppService` |
+
+Turning off a key type genuinely hands those keys back to macOS: the event tap
+only consumes a key when BetterHUD acted on it, so anything left off behaves
+natively, native indicator included.
+
+Holding Shift while pressing a volume key inverts the click setting for that
+press, the way the native keys do.
 
 ## Requirements
 
@@ -79,7 +100,9 @@ that draws it never receives the key press:
 The app is event-driven throughout and does no polling: the event tap, a
 CoreAudio device listener, a display-reconfiguration notification, and the
 accessibility-change notification are the only things that wake it. The
-auto-hide timer is armed only while the HUD is visible.
+auto-hide timer is armed only while the HUD is visible, preferences are read at
+key-press time rather than cached and observed, and the menu refreshes its
+checkmarks only when it opens.
 
 See [CLAUDE.md](CLAUDE.md) for the full architecture notes.
 
@@ -121,12 +144,11 @@ back to ad-hoc with a warning. CLAUDE.md has the commands to create one.
 
 ## Roadmap
 
-- Keyboard backlight keys (F5/F6)
-- Persisted preferences: HUD position, size, duration, step count, which keys to
-  take over
-- Launch at login
+- Keyboard backlight keys (F5/F6) — macOS still ships the artwork for them
 - Precision mode (⇧⌥ for quarter steps)
 - Scroll over the menu bar icon to change volume
+- HUD size options
+- Notarized DMG releases
 
 ## License
 

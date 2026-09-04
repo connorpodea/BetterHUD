@@ -7,17 +7,20 @@ import Foundation
 /// cached copy to go stale after the user changes something.
 @MainActor
 final class Settings {
-    /// Where the HUD is drawn.
+    /// Where the HUD is drawn. All three are horizontally centered; they
+    /// differ only in height.
     enum Placement: String, CaseIterable {
-        /// Dead center, which is where this app puts it by default.
+        case upper
+        /// Dead center, the default.
         case center
         /// Low and centered, where macOS used to put it.
         case lower
 
         var title: String {
             switch self {
-            case .center: "Center of screen"
-            case .lower: "Lower center (like macOS)"
+            case .upper: "Upper"
+            case .center: "Middle"
+            case .lower: "Lower"
             }
         }
     }
@@ -29,9 +32,10 @@ final class Settings {
         case always
         case never
 
-        var title: String {
+        /// Spelled out for a menu, where there's room for it.
+        var menuTitle: String {
             switch self {
-            case .followSystem: "Follow system setting"
+            case .followSystem: "Follow System Setting"
             case .always: "Always"
             case .never: "Never"
             }

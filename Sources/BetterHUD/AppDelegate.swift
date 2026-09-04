@@ -19,13 +19,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private var statusBar: StatusBarController?
     private lazy var setupWindowController = SetupWindowController(permissions: permissions)
-    private lazy var settingsWindowController = SettingsWindowController(settings: settings)
     private var isIntercepting = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusBar = StatusBarController(
-            isInterceptingKeys: { [weak self] in self?.isIntercepting ?? false },
-            openSettings: { [weak self] in self?.settingsWindowController.show() }
+            settings: settings,
+            isInterceptingKeys: { [weak self] in self?.isIntercepting ?? false }
         )
 
         // Granting permission installs the tap immediately, so the app never

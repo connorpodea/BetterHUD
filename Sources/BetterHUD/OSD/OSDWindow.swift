@@ -37,9 +37,9 @@ final class OSDWindow: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
-    /// Where macOS used to put its HUD: low and centered, this far above the
-    /// bottom of the display.
-    private static let lowerOffset: CGFloat = 140
+    /// Inset used by the upper and lower placements. The lower one matches
+    /// where macOS used to draw its own HUD.
+    private static let edgeOffset: CGFloat = 140
 
     /// Positions on the screen containing the pointer, so on a multi-display
     /// setup the HUD appears where the user is looking.
@@ -49,8 +49,9 @@ final class OSDWindow: NSPanel {
         guard let frame = screen?.frame else { return }
 
         let y = switch placement {
+        case .upper: frame.maxY - Self.edgeOffset - OSDPanelView.size.height
         case .center: frame.midY - OSDPanelView.size.height / 2
-        case .lower: frame.minY + Self.lowerOffset
+        case .lower: frame.minY + Self.edgeOffset
         }
         setFrameOrigin(NSPoint(x: frame.midX - OSDPanelView.size.width / 2, y: y))
     }
