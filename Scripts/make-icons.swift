@@ -52,6 +52,43 @@ func drawSpeaker(in rect: NSRect, color: NSColor) {
     }
 }
 
+/// Draws a sun with rays, sized to fit `rect` — the brightness counterpart to
+/// the speaker.
+func drawSun(in rect: NSRect, color: NSColor) {
+    color.setStroke()
+
+    let unit = rect.width / 100
+    let center = NSPoint(x: rect.midX, y: rect.midY)
+
+    let disc = NSBezierPath(
+        ovalIn: NSRect(
+            x: center.x - 22 * unit,
+            y: center.y - 22 * unit,
+            width: 44 * unit,
+            height: 44 * unit
+        )
+    )
+    disc.lineWidth = 7 * unit
+    disc.stroke()
+
+    // Eight rays, evenly spaced around the disc.
+    for step in 0..<8 {
+        let angle = Double(step) * .pi / 4
+        let ray = NSBezierPath()
+        ray.move(to: NSPoint(
+            x: center.x + cos(angle) * 34 * unit,
+            y: center.y + sin(angle) * 34 * unit
+        ))
+        ray.line(to: NSPoint(
+            x: center.x + cos(angle) * 48 * unit,
+            y: center.y + sin(angle) * 48 * unit
+        ))
+        ray.lineWidth = 7 * unit
+        ray.lineCapStyle = .round
+        ray.stroke()
+    }
+}
+
 /// Draws the 16-cell level bar: square cells, hairline separators, matching the
 /// HUD itself.
 func drawLevelBar(in rect: NSRect, filled: Int, color: NSColor) {
@@ -104,8 +141,14 @@ func makeAppIcon(size: CGFloat) -> NSImage {
     ).fill()
     gradient?.draw(in: body.insetBy(dx: 10 * scale, dy: 10 * scale), angle: -90)
 
+    // Brightness on the left, volume on the right, both above the bar — the
+    // icon has to say "volume and brightness", not just one of them.
+    drawSun(
+        in: NSRect(x: 205 * scale, y: 415 * scale, width: 290 * scale, height: 290 * scale),
+        color: .white
+    )
     drawSpeaker(
-        in: NSRect(x: 300 * scale, y: 420 * scale, width: 424 * scale, height: 340 * scale),
+        in: NSRect(x: 540 * scale, y: 455 * scale, width: 290 * scale, height: 210 * scale),
         color: .white
     )
     drawLevelBar(
