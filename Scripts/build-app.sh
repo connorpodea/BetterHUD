@@ -36,7 +36,6 @@ mkdir -p "${BUNDLE}/Contents/MacOS" "${BUNDLE}/Contents/Resources"
 cp "${BIN_PATH}" "${BUNDLE}/Contents/MacOS/${APP_NAME}"
 cp Resources/Info.plist "${BUNDLE}/Contents/Info.plist"
 cp Resources/AppIcon.icns "${BUNDLE}/Contents/Resources/"
-cp Resources/MenuBarIcon.png Resources/MenuBarIcon@2x.png "${BUNDLE}/Contents/Resources/"
 printf 'APPL????' > "${BUNDLE}/Contents/PkgInfo"
 
 # Extended attributes picked up along the way make codesign refuse the bundle.

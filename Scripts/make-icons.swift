@@ -1,11 +1,14 @@
 #!/usr/bin/env swift
 //
-// Generates the app icon and the menu bar icon.
+// Generates the app icon.
 //
 // The artwork is drawn in code rather than checked in as opaque binaries, so
 // it can be tweaked and regenerated. Everything here is original: Apple's OSD
 // PDFs are used at runtime for the HUD itself, but they are not redistributed,
 // so the icon draws its own speaker glyph.
+//
+// The menu bar uses an SF Symbol instead: Apple's glyphs are built for that
+// size and custom artwork looked muddy at 18pt.
 //
 // Usage: swift Scripts/make-icons.swift
 
@@ -114,38 +117,6 @@ func makeAppIcon(size: CGFloat) -> NSImage {
     return image
 }
 
-// MARK: - Menu bar icon
-
-/// A template image: monochrome with alpha, so macOS tints it for light, dark,
-/// and highlighted menu bars automatically.
-func makeMenuBarIcon(size: CGFloat) -> NSImage {
-    let image = NSImage(size: NSSize(width: size, height: size))
-    image.lockFocus()
-    defer { image.unlockFocus() }
-
-    let scale = size / 36
-    let black = NSColor.black
-
-    // A rounded square standing for the HUD panel.
-    let panel = NSRect(x: 3 * scale, y: 5 * scale, width: 30 * scale, height: 26 * scale)
-    let outline = NSBezierPath(roundedRect: panel, xRadius: 6 * scale, yRadius: 6 * scale)
-    outline.lineWidth = 2.4 * scale
-    black.setStroke()
-    outline.stroke()
-
-    // Cells inside it, partly filled — the app's defining detail at a glance.
-    drawLevelBar(
-        in: NSRect(x: 8 * scale, y: 11 * scale, width: 20 * scale, height: 6 * scale),
-        filled: 3,
-        color: black
-    )
-
-    image.unlockFocus()
-    image.lockFocus()
-    image.isTemplate = true
-    return image
-}
-
 // MARK: - Output
 
 func writePNG(_ image: NSImage, to path: String) {
@@ -173,7 +144,4 @@ for (size, name) in [
     writePNG(makeAppIcon(size: CGFloat(size)), to: "\(iconset)/\(name).png")
 }
 
-writePNG(makeMenuBarIcon(size: 18), to: "Resources/MenuBarIcon.png")
-writePNG(makeMenuBarIcon(size: 36), to: "Resources/MenuBarIcon@2x.png")
-
-print("wrote \(iconset) and menu bar icons")
+print("wrote \(iconset)")

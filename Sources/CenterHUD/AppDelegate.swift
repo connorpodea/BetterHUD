@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let volumeController = VolumeController()
     private let brightnessController = BrightnessController()
     private let osdController = OSDController()
+    private let feedbackSound = VolumeFeedbackSound()
     private let permissions = PermissionManager()
 
     private lazy var mediaKeyTap = MediaKeyTap { [weak self] event in
@@ -58,6 +59,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch event.key {
         case .soundUp, .soundDown:
             volumeController.adjust(increasing: event.key == .soundUp)
+            // The system would normally click here, but it never sees the key.
+            feedbackSound.play(shiftHeld: NSEvent.modifierFlags.contains(.shift))
             showVolumeHUD()
 
         case .mute:

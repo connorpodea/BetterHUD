@@ -31,16 +31,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private func configureButton() {
         guard let button = statusItem.button else { return }
-        // The bundled artwork is a miniature of the HUD itself. It's a template
-        // image, so macOS tints it correctly for light, dark, and highlighted
-        // menu bars. Falls back to an SF Symbol if the resource is missing.
-        let icon = Bundle.main.image(forResource: "MenuBarIcon")
-            ?? NSImage(
-                systemSymbolName: "rectangle.center.inset.filled",
-                accessibilityDescription: "CenterHUD"
-            )
+        // An SF Symbol rather than custom artwork: Apple's glyphs are drawn
+        // for menu bar sizes and stay legible at 18pt, and a rectangle with a
+        // centered inset reads as "a panel in the middle of the screen".
+        let icon = NSImage(
+            systemSymbolName: "rectangle.center.inset.filled",
+            accessibilityDescription: "CenterHUD"
+        )
         icon?.isTemplate = true
-        icon?.accessibilityDescription = "CenterHUD"
         button.image = icon
     }
 
