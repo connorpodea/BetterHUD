@@ -31,15 +31,17 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private func configureButton() {
         guard let button = statusItem.button else { return }
-        // An SF Symbol rather than custom artwork: Apple's glyphs are drawn
-        // for menu bar sizes and stay legible at 18pt, and a rectangle with a
-        // centered inset reads as "a panel in the middle of the screen".
-        let icon = NSImage(
-            systemSymbolName: "rectangle.center.inset.filled",
-            accessibilityDescription: "BetterHUD"
+        // The same wordmark as the app icon, drawn as text rather than as an
+        // image: it stays crisp at any scale factor, and `labelColor` is
+        // dynamic, so it tracks light, dark, and highlighted menu bars.
+        button.attributedTitle = NSAttributedString(
+            string: "HUD",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 12, weight: .bold),
+                .foregroundColor: NSColor.labelColor,
+            ]
         )
-        icon?.isTemplate = true
-        button.image = icon
+        button.setAccessibilityLabel("BetterHUD")
     }
 
     private func configureMenu() {
