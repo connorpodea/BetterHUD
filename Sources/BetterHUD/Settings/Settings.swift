@@ -45,14 +45,18 @@ final class Settings {
 
     private enum Key {
         static let placement = "hudPlacement"
+        static let opacity = "hudBackdropOpacity"
         static let visibleDuration = "hudVisibleDuration"
         static let handlesVolumeKeys = "handlesVolumeKeys"
         static let handlesBrightnessKeys = "handlesBrightnessKeys"
         static let feedbackMode = "volumeFeedbackMode"
     }
 
-    /// Durations offered in the settings window.
-    static let durationChoices: [TimeInterval] = [1.0, 1.5, 2.0, 3.0]
+    /// Durations offered in the menu.
+    static let durationChoices: [TimeInterval] = [1.0, 1.5, 2.0]
+
+    /// Opacities the slider snaps to.
+    static let opacityChoices: [Double] = [0, 0.25, 0.5, 1.0]
 
     private let defaults: UserDefaults
 
@@ -63,6 +67,7 @@ final class Settings {
         defaults.register(defaults: [
             Key.placement: Placement.center.rawValue,
             Key.visibleDuration: 1.5,
+            Key.opacity: 1.0,
             Key.handlesVolumeKeys: true,
             Key.handlesBrightnessKeys: true,
             Key.feedbackMode: FeedbackMode.followSystem.rawValue,
@@ -75,8 +80,23 @@ final class Settings {
     }
 
     var visibleDuration: TimeInterval {
-        get { defaults.double(forKey: Key.visibleDuration) }
+        get {
+            // A previously chosen duration may no longer be offered, so fall
+            // back to the closest one still available rather than leaving no
+            // option selected.
+            let stored = defaults.double(forKey: Key.visibleDuration)
+            return Self.durationChoices.min {
+                abs($0 - stored) < abs($1 - stored)
+            } ?? 1.5
+        }
         set { defaults.set(newValue, forKey: Key.visibleDuration) }
+    }
+
+    /// Opacity of the HUD's panel background, 0 through 1. The glyph and level
+    /// bar are unaffected.
+    var backdropOpacity: Double {
+        get { defaults.double(forKey: Key.opacity) }
+        set { defaults.set(min(max(newValue, 0), 1), forKey: Key.opacity) }
     }
 
     var handlesVolumeKeys: Bool {

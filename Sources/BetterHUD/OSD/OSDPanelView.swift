@@ -55,6 +55,14 @@ final class OSDPanelView: NSView {
 
     // MARK: - Content
 
+    /// Fades the panel background without touching the glyph or the level bar,
+    /// which stay fully opaque so the HUD is readable at any setting.
+    func setBackdropOpacity(_ opacity: Double) {
+        let value = CGFloat(min(max(opacity, 0), 1))
+        guard backdrop.alphaValue != value else { return }
+        backdrop.alphaValue = value
+    }
+
     /// Updates the glyph and bar in place. The panel is built once and reused,
     /// so showing the HUD allocates nothing.
     func update(icon: NSImage?, level: Float) {

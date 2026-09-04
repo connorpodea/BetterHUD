@@ -10,12 +10,9 @@ import AppKit
 @MainActor
 final class StatusBarController: NSObject, NSMenuDelegate {
     private let settings: Settings
-    /// Queried when the menu opens, so the status line is always current.
-    private let isInterceptingKeys: () -> Bool
 
     private let statusItem: NSStatusItem
-    private let statusLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-    private let headerView = MenuHeaderView()
+    private let opacitySlider = NSSlider()
     private let launchAtLoginItem = NSMenuItem(title: "Open at Login", action: nil, keyEquivalent: "")
 
     private var placementItems: [NSMenuItem] = []
@@ -24,9 +21,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let volumeKeysItem = NSMenuItem(title: "Volume and Mute", action: nil, keyEquivalent: "")
     private let brightnessKeysItem = NSMenuItem(title: "Brightness", action: nil, keyEquivalent: "")
 
-    init(settings: Settings, isInterceptingKeys: @escaping () -> Bool) {
+    init(settings: Settings) {
         self.settings = settings
-        self.isInterceptingKeys = isInterceptingKeys
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -57,13 +53,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         // gray out the title.
         menu.autoenablesItems = false
 
-        // A view, not a title: a menu item can only draw its image on the
-        // leading side, and the app icon belongs on the trailing side of the
-        // header.
-        statusLine.isEnabled = true
-        statusLine.view = headerView
-        menu.addItem(statusLine)
-
         // One selectable option per section, except Take Over, where any
         // combination is valid.
         addSection(to: menu, titled: "Position")
@@ -81,6 +70,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             )
         }
         durationItems.forEach(menu.addItem)
+
+        addSection(to: menu, titled: "Opacity")
+        let opacityItem = NSMenuItem()
+        opacityItem.view = makeOpacityRow()
+        // Disabled so the row itself can't be clicked or highlighted; the
+        // slider inside it still tracks the mouse.
+        opacityItem.isEnabled = false
+        menu.addItem(opacityItem)
 
         addSection(to: menu, titled: "Take Over")
         for (item, action) in [
@@ -120,10 +117,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// Refreshing when the menu opens keeps every checkmark honest without any
     /// observers running while nobody is looking.
     func menuWillOpen(_ menu: NSMenu) {
-        headerView.update(
-            status: isInterceptingKeys() ? "Replacing HUD" : "Needs Permission"
-        )
-
+        opacitySlider.doubleValue = settings.backdropOpacity
         check(placementItems, at: Settings.Placement.allCases.firstIndex(of: settings.placement))
         check(durationItems, at: Settings.durationChoices.firstIndex(of: settings.visibleDuration))
         check(feedbackItems, at: Settings.FeedbackMode.allCases.firstIndex(of: settings.feedbackMode))
@@ -166,6 +160,28 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         item.setAccessibilityTitle(text)
     }
 
+    /// A slider that snaps to the offered opacities.
+    ///
+    /// The stops aren't evenly spaced, so AppKit's tick marks can't do this:
+    /// they'd land on quarters of the range. The action rounds to the nearest
+    /// offered value instead.
+    private func makeOpacityRow() -> NSView {
+        opacitySlider.minValue = Settings.opacityChoices.first ?? 0
+        opacitySlider.maxValue = Settings.opacityChoices.last ?? 1
+        opacitySlider.isContinuous = true
+        opacitySlider.controlSize = .small
+        opacitySlider.target = self
+        opacitySlider.action = #selector(changeOpacity)
+        opacitySlider.doubleValue = settings.backdropOpacity
+
+        let row = NSView(frame: NSRect(x: 0, y: 0, width: 160, height: 26))
+        opacitySlider.frame = NSRect(x: 21, y: 4, width: 118, height: 18)
+        opacitySlider.autoresizingMask = [.width]
+        row.addSubview(opacitySlider)
+        row.autoresizingMask = [.width]
+        return row
+    }
+
     /// A divider plus a heading, so the groups read as groups.
     ///
     /// The heading is a view rather than a title, which is the only way to get
@@ -205,6 +221,16 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         settings.placement = Settings.Placement.allCases[sender.tag]
     }
 
+    @objc private func changeOpacity() {
+        let dragged = opacitySlider.doubleValue
+        guard let snapped = Settings.opacityChoices.min(by: {
+            abs($0 - dragged) < abs($1 - dragged)
+        }) else { return }
+
+        opacitySlider.doubleValue = snapped
+        settings.backdropOpacity = snapped
+    }
+
     @objc private func changeDuration(_ sender: NSMenuItem) {
         settings.visibleDuration = Settings.durationChoices[sender.tag]
     }
@@ -227,106 +253,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func quit() {
         NSApp.terminate(nil)
-    }
-}
-
-/// The menu's header: the app name over its current state, with the app icon on
-/// the trailing side.
-///
-/// Laid out by hand against `bounds`, because AppKit stretches a menu item's
-/// view to the menu's width and the icon has to follow that edge.
-@MainActor
-private final class MenuHeaderView: NSView {
-    private let titleLabel = NSTextField(labelWithString: "BetterHUD")
-    private let statusLabel = NSTextField(labelWithString: "")
-    private let iconView = NSImageView()
-
-    private enum Metrics {
-        /// Matches the inset AppKit gives a menu item's title, so the header
-        /// lines up with the rows below it.
-        static let leadingInset: CGFloat = 21
-        static let trailingInset: CGFloat = 8
-        static let verticalPadding: CGFloat = 7
-        /// Space between the two lines of text.
-        static let lineSpacing: CGFloat = 4
-        /// Space between the text and the icon.
-        static let iconGap: CGFloat = 19
-    }
-
-    init() {
-        super.init(frame: .zero)
-
-        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
-        titleLabel.textColor = .labelColor
-        statusLabel.font = .systemFont(ofSize: 11)
-        statusLabel.textColor = .secondaryLabelColor
-        // Placeholder text so the frame below is right from the start; a menu
-        // item view with a zero frame draws nothing.
-        statusLabel.stringValue = "Replacing HUD"
-
-        iconView.image = NSApp.applicationIconImage
-        iconView.imageScaling = .scaleProportionallyUpOrDown
-
-        addSubview(titleLabel)
-        addSubview(statusLabel)
-        addSubview(iconView)
-        autoresizingMask = [.width]
-        frame = NSRect(origin: .zero, size: intrinsicContentSize)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    func update(status: String) {
-        statusLabel.stringValue = status
-        // Width is AppKit's to set; only the height is ours.
-        setFrameSize(NSSize(width: frame.width, height: intrinsicContentSize.height))
-        needsLayout = true
-    }
-
-    /// Width of the wider of the two lines.
-    private var textWidth: CGFloat {
-        max(titleLabel.fittingSize.width, statusLabel.fittingSize.width)
-    }
-
-    /// Height of both lines together.
-    private var textHeight: CGFloat {
-        titleLabel.fittingSize.height + Metrics.lineSpacing + statusLabel.fittingSize.height
-    }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(
-            width: Metrics.leadingInset + textWidth + Metrics.iconGap + textHeight
-                + Metrics.verticalPadding,
-            height: textHeight + Metrics.verticalPadding * 2
-        )
-    }
-
-    override func layout() {
-        super.layout()
-
-        var y = bounds.maxY - Metrics.verticalPadding
-        for label in [titleLabel, statusLabel] {
-            let size = label.fittingSize
-            y -= size.height
-            label.frame = NSRect(
-                x: Metrics.leadingInset, y: y, width: size.width, height: size.height
-            )
-            y -= Metrics.lineSpacing
-        }
-
-        // Sits just past the text, filling the header's height with the same
-        // margin above and below. Pinning it to the trailing edge instead put
-        // it against the menu's border, because AppKit stretches this view to
-        // the full menu width.
-        let margin = Metrics.verticalPadding
-        let size = bounds.height - margin * 2
-        iconView.frame = NSRect(
-            x: Metrics.leadingInset + textWidth + Metrics.iconGap,
-            y: margin,
-            width: size,
-            height: size
-        )
     }
 }
 

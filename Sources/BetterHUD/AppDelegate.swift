@@ -22,10 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isIntercepting = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        statusBar = StatusBarController(
-            settings: settings,
-            isInterceptingKeys: { [weak self] in self?.isIntercepting ?? false }
-        )
+        statusBar = StatusBarController(settings: settings)
 
         // Granting permission installs the tap immediately, so the app never
         // needs to be relaunched to start working.

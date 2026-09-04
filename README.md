@@ -63,7 +63,8 @@ choices.
 | Setting | Choices |
 | --- | --- |
 | Position | Upper, Middle, Lower |
-| Show for | 1.0, 1.5, 2.0, or 3.0 seconds |
+| Show for | 1.0, 1.5, or 2.0 seconds |
+| Opacity | Panel background at 0, 25, 50, or 100 percent |
 | Take over | Volume and mute, Brightness, independently |
 | Volume click | System, Always, Never |
 | Open at login | On or off, registered with `SMAppService` |
