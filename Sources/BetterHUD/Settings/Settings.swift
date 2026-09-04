@@ -26,19 +26,20 @@ final class Settings {
     }
 
     /// Whether to play the click that macOS normally makes on a volume change.
+    /// Ordered least to most, which is how the choices are presented.
     enum FeedbackMode: String, CaseIterable {
+        case never
         /// Honor System Settings → Sound → "Play feedback when volume is changed".
         case followSystem
         case always
-        case never
 
         /// Kept short: a menu is only as narrow as its longest row, and the
         /// section heading already supplies the context.
         var menuTitle: String {
             switch self {
+            case .never: "Never"
             case .followSystem: "System"
             case .always: "Always"
-            case .never: "Never"
             }
         }
     }

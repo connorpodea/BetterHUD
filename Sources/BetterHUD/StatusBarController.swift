@@ -344,8 +344,11 @@ private final class MenuFooterView: NSView {
         /// Matches the inset AppKit gives a menu item's title.
         static let leadingInset: CGFloat = 18
         static let trailingInset: CGFloat = 14
-        static let verticalPadding: CGFloat = 6
-        static let height: CGFloat = 34
+        static let height: CGFloat = 38
+        /// Grows the capsule beyond the text it contains.
+        static let tilePaddingX: CGFloat = 9
+        static let tilePaddingY: CGFloat = 4
+        static let gap: CGFloat = 12
     }
 
     init(onSettings: @escaping () -> Void, onQuit: @escaping () -> Void) {
@@ -366,21 +369,39 @@ private final class MenuFooterView: NSView {
     required init?(coder: NSCoder) { fatalError("not used") }
 
     /// `.inline` is the small gray capsule AppKit already draws for this, so
-    /// the bubble is the system's rather than something hand-painted.
+    /// the tile is the system's rather than something hand-painted.
+    ///
+    /// The title color is `labelColor` rather than literal white: it resolves
+    /// to white in a dark menu, and stays readable if the menu is light.
     private func configure(_ button: NSButton, title: String, action: Selector) {
-        button.title = title
         button.bezelStyle = .inline
         button.controlSize = .regular
-        button.font = .systemFont(ofSize: 12, weight: .medium)
+        button.attributedTitle = NSAttributedString(
+            string: title,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 12, weight: .medium),
+                .foregroundColor: NSColor.labelColor,
+            ]
+        )
         button.target = self
         button.action = action
         button.sizeToFit()
     }
 
+    /// The button's own fitting size plus padding, so the capsule sits a little
+    /// wider and taller than the text inside it.
+    private func tileSize(for button: NSButton) -> NSSize {
+        let fitting = button.fittingSize
+        return NSSize(
+            width: fitting.width + Metrics.tilePaddingX * 2,
+            height: fitting.height + Metrics.tilePaddingY * 2
+        )
+    }
+
     override var intrinsicContentSize: NSSize {
         NSSize(
-            width: Metrics.leadingInset + settingsButton.fittingSize.width + 12
-                + quitButton.fittingSize.width + Metrics.trailingInset,
+            width: Metrics.leadingInset + tileSize(for: settingsButton).width + Metrics.gap
+                + tileSize(for: quitButton).width + Metrics.trailingInset,
             height: Metrics.height
         )
     }
@@ -388,20 +409,20 @@ private final class MenuFooterView: NSView {
     override func layout() {
         super.layout()
 
-        let settingsSize = settingsButton.fittingSize
+        let settings = tileSize(for: settingsButton)
         settingsButton.frame = NSRect(
             x: Metrics.leadingInset,
-            y: (bounds.height - settingsSize.height) / 2,
-            width: settingsSize.width,
-            height: settingsSize.height
+            y: (bounds.height - settings.height) / 2,
+            width: settings.width,
+            height: settings.height
         )
 
-        let quitSize = quitButton.fittingSize
+        let quit = tileSize(for: quitButton)
         quitButton.frame = NSRect(
-            x: bounds.maxX - Metrics.trailingInset - quitSize.width,
-            y: (bounds.height - quitSize.height) / 2,
-            width: quitSize.width,
-            height: quitSize.height
+            x: bounds.maxX - Metrics.trailingInset - quit.width,
+            y: (bounds.height - quit.height) / 2,
+            width: quit.width,
+            height: quit.height
         )
     }
 

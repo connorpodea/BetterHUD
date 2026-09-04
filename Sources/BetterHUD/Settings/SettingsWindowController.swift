@@ -176,7 +176,7 @@ final class SettingsWindowController: NSWindowController {
         configureButton(updateButton, title: "Check for Updates",
                         action: #selector(checkForUpdates))
 
-        let updateRow = NSStackView(views: [updateLabel, updateButton])
+        let updateRow = NSStackView(views: [updateLabel])
         updateRow.orientation = .horizontal
         updateRow.spacing = 10
 
@@ -199,7 +199,15 @@ final class SettingsWindowController: NSWindowController {
         let done = NSButton(title: "Done", target: self, action: #selector(finish))
         done.bezelStyle = .rounded
         done.keyEquivalent = "\r"
-        let footer = NSStackView(views: [NSView(), done])
+
+        // The spacer carries the slack, so the update button stays left and
+        // Done stays right however wide the window is.
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        updateButton.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        done.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+
+        let footer = NSStackView(views: [updateButton, spacer, done])
         footer.orientation = .horizontal
 
         let stack = NSStackView(views: [
