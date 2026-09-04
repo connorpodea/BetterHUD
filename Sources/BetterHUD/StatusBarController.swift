@@ -13,7 +13,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private let statusItem: NSStatusItem
     private let opacitySlider = NSSlider()
-    private let launchAtLoginItem = NSMenuItem(title: "Open at Login", action: nil, keyEquivalent: "")
 
     private var placementItems: [NSMenuItem] = []
     private var durationItems: [NSMenuItem] = []
@@ -96,12 +95,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
         feedbackItems.forEach(menu.addItem)
 
-        addSection(to: menu, titled: "Startup")
-        launchAtLoginItem.target = self
-        launchAtLoginItem.action = #selector(toggleLaunchAtLogin)
-        Self.styleOption(launchAtLoginItem)
-        menu.addItem(launchAtLoginItem)
-
         menu.addItem(.separator())
         // Deliberately not `NSApplication.terminate(_:)`: macOS decorates that
         // standard action with a symbol, which shifts the title into a
@@ -124,7 +117,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         volumeKeysItem.state = settings.handlesVolumeKeys ? .on : .off
         brightnessKeysItem.state = settings.handlesBrightnessKeys ? .on : .off
-        launchAtLoginItem.state = LaunchAtLogin.isEnabled ? .on : .off
     }
 
     // MARK: - Menu building
@@ -245,10 +237,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func toggleBrightnessKeys() {
         settings.handlesBrightnessKeys.toggle()
-    }
-
-    @objc private func toggleLaunchAtLogin() {
-        LaunchAtLogin.setEnabled(!LaunchAtLogin.isEnabled)
     }
 
     @objc private func quit() {

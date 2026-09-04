@@ -58,7 +58,8 @@ within about a second. Input Monitoring is not required.
 ## Settings
 
 Everything is in the menu bar item, since each setting is a short list of
-choices.
+choices. Opening at login is set during first launch setup, and afterwards from
+System Settings > General > Login Items.
 
 | Setting | Choices |
 | --- | --- |
@@ -67,7 +68,6 @@ choices.
 | Opacity | Panel background at 0, 25, 50, 75, or 100 percent |
 | Take over | Volume and mute, Brightness, independently |
 | Volume click | System, Always, Never |
-| Open at login | On or off, registered with `SMAppService` |
 
 Turning off a key type hands those keys back to macOS. The app only swallows a
 key press it actually acted on, so anything you turn off behaves normally,
