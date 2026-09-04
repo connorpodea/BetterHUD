@@ -9,7 +9,7 @@
 #   identifier "com.connorpodea.betterhud" and certificate leaf = H"..."
 # which is stable across rebuilds, so the grant survives.
 #
-# "CenterHUD Dev" is a locally generated, locally trusted code-signing cert
+# "BetterHUD Dev" is a locally generated, locally trusted code-signing cert
 # (see CLAUDE.md). Shipping to other machines still needs a Developer ID
 # certificate and notarization.
 
@@ -25,10 +25,7 @@ APP_NAME="BetterHUD"
 # and is where the app should live for everyday use anyway.
 INSTALL_DIR="${BETTERHUD_INSTALL_DIR:-${HOME}/Applications}"
 BUNDLE="${INSTALL_DIR}/${APP_NAME}.app"
-# The local cert is still named "CenterHUD Dev" from before the rename.
-# Renaming the app doesn't require a new certificate, and regenerating one
-# would mean re-trusting it in the keychain for no benefit.
-SIGN_IDENTITY="${BETTERHUD_SIGN_IDENTITY:-CenterHUD Dev}"
+SIGN_IDENTITY="${BETTERHUD_SIGN_IDENTITY:-BetterHUD Dev}"
 
 swift build -c release
 BIN_PATH="$(swift build -c release --show-bin-path)/${APP_NAME}"
