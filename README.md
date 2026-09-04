@@ -1,5 +1,7 @@
 # BetterHUD
 
+**Version 0.0.1 — September 4, 2026**
+
 macOS 26 replaced the centered volume and brightness HUD with a small pill in
 the corner. BetterHUD brings the old one back — and makes sure the new one
 never appears while it's running.
@@ -149,6 +151,21 @@ back to ad-hoc with a warning. CLAUDE.md has the commands to create one.
 - Scroll over the menu bar icon to change volume
 - HUD size options
 - Notarized DMG releases
+
+## Version history
+
+### 0.0.1 — September 4, 2026
+
+First release.
+
+- Intercepts the volume, mute, and brightness keys at the HID level and
+  suppresses the macOS 26 indicator
+- Centered HUD panel using macOS's own OSD artwork, with a 16-segment level bar
+- Volume, mute, and built-in display brightness control in Apple's sixteenths
+- Volume feedback click, honoring the system setting, invertible with Shift
+- First-run setup that reports permission state live
+- Menu bar settings: position, duration, which keys to take over, volume click,
+  and open at login
 
 ## License
 
