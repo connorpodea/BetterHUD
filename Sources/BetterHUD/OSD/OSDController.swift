@@ -9,15 +9,18 @@ import AppKit
 @MainActor
 final class OSDController {
     private enum Timing {
-        /// How long the HUD stays at full opacity after the last key press.
-        static let visibleDuration: TimeInterval = 1.5
         static let fadeIn: TimeInterval = 0.08
         static let fadeOut: TimeInterval = 0.4
     }
 
     private let window = OSDWindow()
     private let glyphs = OSDGlyphProvider()
+    private let settings: Settings
     private var hideTimer: Timer?
+
+    init(settings: Settings) {
+        self.settings = settings
+    }
 
     func showVolume(level: Float, isMuted: Bool) {
         // A muted output shows the crossed-out speaker and an empty bar, as the
@@ -40,7 +43,7 @@ final class OSDController {
         window.panel.update(icon: icon, level: level)
 
         if !window.isVisible {
-            window.positionOnActiveScreen()
+            window.position(for: settings.placement)
             window.orderFrontRegardless()
         }
 
@@ -61,7 +64,7 @@ final class OSDController {
         // A one-shot timer, armed only while the HUD is up, so an idle app has
         // nothing scheduled at all.
         hideTimer = Timer.scheduledTimer(
-            withTimeInterval: Timing.visibleDuration, repeats: false
+            withTimeInterval: settings.visibleDuration, repeats: false
         ) { _ in
             MainActor.assumeIsolated { [weak self] in self?.hide() }
         }

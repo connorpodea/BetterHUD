@@ -16,7 +16,10 @@ import AppKit
 /// using a listen-only tap, would make the native HUD appear alongside ours.
 @MainActor
 final class MediaKeyTap {
-    typealias Handler = (MediaKeyEvent) -> Void
+    /// Returns true if the event was handled and should be consumed. Returning
+    /// false passes it through to macOS, which will then show its own
+    /// indicator — that's what makes turning off a key type work.
+    typealias Handler = (MediaKeyEvent) -> Bool
 
     private let handler: Handler
     private var tapPort: CFMachPort?
@@ -72,7 +75,7 @@ final class MediaKeyTap {
         CGEvent.tapEnable(tap: port, enable: true)
     }
 
-    fileprivate func handle(_ event: MediaKeyEvent) {
+    fileprivate func handle(_ event: MediaKeyEvent) -> Bool {
         handler(event)
     }
 }
@@ -93,9 +96,10 @@ private let mediaKeyTapCallback: CGEventTapCallBack = { _, type, event, userInfo
         return Unmanaged.passUnretained(event)
     }
 
-    MainActor.assumeIsolated { tap.handle(mediaKeyEvent) }
+    let handled = MainActor.assumeIsolated { tap.handle(mediaKeyEvent) }
 
-    // Swallow key down *and* key up for keys we own, so no fragment of the
-    // press reaches the native HUD.
-    return nil
+    // Swallowing key down *and* key up for keys we own keeps any fragment of
+    // the press from reaching the native HUD. Keys we don't own pass straight
+    // through, so macOS handles them as usual.
+    return handled ? nil : Unmanaged.passUnretained(event)
 }

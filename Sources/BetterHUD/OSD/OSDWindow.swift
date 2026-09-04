@@ -37,16 +37,21 @@ final class OSDWindow: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
+    /// Where macOS used to put its HUD: low and centered, this far above the
+    /// bottom of the display.
+    private static let lowerOffset: CGFloat = 140
+
     /// Positions on the screen containing the pointer, so on a multi-display
     /// setup the HUD appears where the user is looking.
-    func positionOnActiveScreen() {
+    func position(for placement: Settings.Placement) {
         let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }
             ?? NSScreen.main
         guard let frame = screen?.frame else { return }
 
-        setFrameOrigin(NSPoint(
-            x: frame.midX - OSDPanelView.size.width / 2,
-            y: frame.midY - OSDPanelView.size.height / 2
-        ))
+        let y = switch placement {
+        case .center: frame.midY - OSDPanelView.size.height / 2
+        case .lower: frame.minY + Self.lowerOffset
+        }
+        setFrameOrigin(NSPoint(x: frame.midX - OSDPanelView.size.width / 2, y: y))
     }
 }

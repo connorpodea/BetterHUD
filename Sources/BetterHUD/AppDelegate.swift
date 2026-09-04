@@ -6,22 +6,26 @@ import os
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let log = Logger(subsystem: "com.connorpodea.betterhud", category: "app")
 
+    private let settings = Settings()
     private let volumeController = VolumeController()
     private let brightnessController = BrightnessController()
-    private let osdController = OSDController()
     private let feedbackSound = VolumeFeedbackSound()
     private let permissions = PermissionManager()
+    private lazy var osdController = OSDController(settings: settings)
 
     private lazy var mediaKeyTap = MediaKeyTap { [weak self] event in
-        self?.handle(event)
+        // No delegate means nothing can act on the key, so let macOS have it.
+        self?.handle(event) ?? false
     }
     private var statusBar: StatusBarController?
     private lazy var setupWindowController = SetupWindowController(permissions: permissions)
+    private lazy var settingsWindowController = SettingsWindowController(settings: settings)
     private var isIntercepting = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusBar = StatusBarController(
-            isInterceptingKeys: { [weak self] in self?.isIntercepting ?? false }
+            isInterceptingKeys: { [weak self] in self?.isIntercepting ?? false },
+            openSettings: { [weak self] in self?.settingsWindowController.show() }
         )
 
         // Granting permission installs the tap immediately, so the app never
@@ -59,26 +63,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func handle(_ event: MediaKeyEvent) {
-        guard event.isPressed else { return }
-
+    /// Returns true if the key was handled, which consumes it. Returning false
+    /// leaves the key to macOS, so a key type the user turned off behaves
+    /// natively, native indicator included.
+    private func handle(_ event: MediaKeyEvent) -> Bool {
         switch event.key {
-        case .soundUp, .soundDown:
-            volumeController.adjust(increasing: event.key == .soundUp)
-            // The system would normally click here, but it never sees the key.
-            feedbackSound.play(shiftHeld: NSEvent.modifierFlags.contains(.shift))
-            showVolumeHUD()
+        case .soundUp, .soundDown, .mute:
+            guard settings.handlesVolumeKeys else { return false }
+            // Key-up is consumed without acting, so no fragment of the press
+            // reaches the native HUD.
+            guard event.isPressed else { return true }
 
-        case .mute:
-            // Ignore auto-repeat so holding the key doesn't flap the mute state.
-            guard !event.isRepeat else { return }
-            volumeController.toggleMute()
+            if event.key == .mute {
+                // Ignore auto-repeat so holding the key doesn't flap the state.
+                guard !event.isRepeat else { return true }
+                volumeController.toggleMute()
+            } else {
+                volumeController.adjust(increasing: event.key == .soundUp)
+                // The system would normally click here, but it never sees the key.
+                feedbackSound.play(
+                    shiftHeld: NSEvent.modifierFlags.contains(.shift),
+                    mode: settings.feedbackMode
+                )
+            }
             showVolumeHUD()
+            return true
 
         case .brightnessUp, .brightnessDown:
+            guard settings.handlesBrightnessKeys else { return false }
+            guard event.isPressed else { return true }
+
             brightnessController.adjust(increasing: event.key == .brightnessUp)
-            guard let level = brightnessController.level else { return }
-            osdController.showBrightness(level: level)
+            if let level = brightnessController.level {
+                osdController.showBrightness(level: level)
+            }
+            return true
         }
     }
 

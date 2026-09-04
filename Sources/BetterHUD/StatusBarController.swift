@@ -11,9 +11,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     /// Queried when the menu opens so the status line is always current.
     private let isInterceptingKeys: () -> Bool
+    private let openSettings: () -> Void
 
-    init(isInterceptingKeys: @escaping () -> Bool) {
+    init(isInterceptingKeys: @escaping () -> Bool, openSettings: @escaping () -> Void) {
         self.isInterceptingKeys = isInterceptingKeys
+        self.openSettings = openSettings
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -44,6 +46,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(statusLine)
 
         menu.addItem(.separator())
+
+        let settingsItem = NSMenuItem(
+            title: "Settings…", action: #selector(handleOpenSettings), keyEquivalent: ","
+        )
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        menu.addItem(.separator())
         let quit = NSMenuItem(
             title: "Quit BetterHUD",
             action: #selector(NSApplication.terminate(_:)),
@@ -61,5 +71,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         statusLine.title = isInterceptingKeys()
             ? "Replacing the system HUD"
             : "Needs Accessibility permission"
+    }
+
+    @objc private func handleOpenSettings() {
+        openSettings()
     }
 }
