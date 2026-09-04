@@ -45,7 +45,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if isIntercepting {
             log.notice("event tap active; replacing the system HUD")
         } else {
-            log.error("event tap unavailable; grant Accessibility to CenterHUD.app")
+            // Distinguishing these cases matters: untrusted means permission is
+            // still missing, while trusted-but-refused means the tap itself was
+            // rejected and something else is wrong.
+            log.error("event tap unavailable; accessibility trusted=\(self.permissions.isTrusted, privacy: .public)")
         }
     }
 

@@ -43,7 +43,11 @@ final class BrightnessController {
     /// presses land on clean stops.
     func adjust(increasing: Bool) {
         guard let current = level else { return }
-        let steps = (current * Self.stepCount).rounded(increasing ? .down : .up)
+        // Snap to the nearest step, then move one. Rounding toward the
+        // direction of travel would stall: the hardware reads a level back as
+        // 12.04 rather than a clean step, so rounding could recompute the step
+        // we just set and never advance.
+        let steps = (current * Self.stepCount).rounded()
         let target = (steps + (increasing ? 1 : -1)) * Self.step
         setLevel(target)
     }

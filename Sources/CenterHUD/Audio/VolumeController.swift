@@ -70,9 +70,11 @@ final class VolumeController {
             setMuted(false)
         }
 
-        // Snap to the grid first so repeated presses land on clean stops even
-        // if another app left the volume at an arbitrary value.
-        let steps = (current * Self.stepCount).rounded(increasing ? .down : .up)
+        // Snap to the nearest step, then move one. Rounding toward the
+        // direction of travel would stall: the hardware reads a level back as
+        // 8.999999 rather than 9, so rounding down would recompute the step we
+        // just set and never advance.
+        let steps = (current * Self.stepCount).rounded()
         let target = (steps + (increasing ? 1 : -1)) * Self.step
         let clamped = min(max(target, 0), 1)
 

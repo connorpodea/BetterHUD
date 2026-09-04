@@ -37,11 +37,6 @@ final class OSDWindow: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
-    /// Apple's HUD is centered horizontally but sits low on the screen rather
-    /// than at the vertical center — this is the offset of its bottom edge from
-    /// the bottom of the display.
-    private static let bottomOffset: CGFloat = 140
-
     /// Positions on the screen containing the pointer, so on a multi-display
     /// setup the HUD appears where the user is looking.
     func positionOnActiveScreen() {
@@ -51,7 +46,7 @@ final class OSDWindow: NSPanel {
 
         setFrameOrigin(NSPoint(
             x: frame.midX - OSDPanelView.size.width / 2,
-            y: frame.minY + Self.bottomOffset
+            y: frame.midY - OSDPanelView.size.height / 2
         ))
     }
 }

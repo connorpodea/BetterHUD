@@ -26,6 +26,10 @@ final class OSDPanelView: NSView {
 
     private let backdrop = NSVisualEffectView()
     private let iconView = NSImageView()
+    /// The segments live in their own subview rather than in this view's layer:
+    /// a view's own sublayers draw *behind* its subviews, so segments added to
+    /// `self.layer` would be hidden underneath the backdrop.
+    private let levelBarView = NSView()
     private var segments: [CALayer] = []
 
     /// Tracks the last rendered fill count so a repeated key press that lands
@@ -95,19 +99,26 @@ final class OSDPanelView: NSView {
     }
 
     private func setUpLevelBar() {
-        let originX = (Self.size.width - Metrics.barWidth) / 2
+        levelBarView.wantsLayer = true
+        levelBarView.frame = NSRect(
+            x: (Self.size.width - Metrics.barWidth) / 2,
+            y: Metrics.barBottomInset,
+            width: Metrics.barWidth,
+            height: Metrics.segmentHeight
+        )
+        addSubview(levelBarView)
 
         segments = (0..<Metrics.segmentCount).map { index in
             let segment = CALayer()
             segment.frame = CGRect(
-                x: originX + CGFloat(index) * (Metrics.segmentWidth + Metrics.segmentGap),
-                y: Metrics.barBottomInset,
+                x: CGFloat(index) * (Metrics.segmentWidth + Metrics.segmentGap),
+                y: 0,
                 width: Metrics.segmentWidth,
                 height: Metrics.segmentHeight
             )
             segment.cornerRadius = Metrics.segmentCornerRadius
             segment.backgroundColor = NSColor.white.withAlphaComponent(0.25).cgColor
-            layer?.addSublayer(segment)
+            levelBarView.layer?.addSublayer(segment)
             return segment
         }
     }
