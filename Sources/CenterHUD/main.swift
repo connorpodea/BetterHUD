@@ -17,8 +17,13 @@ let isTrusted = AXIsProcessTrustedWithOptions(
 )
 
 let volumeController = VolumeController()
+let brightnessController = BrightnessController()
 
-// Brightness keys are still inert until the DisplayServices bridge lands.
+log.notice("""
+    startup: volume=\(volumeController.level.map { "\($0)" } ?? "unavailable", privacy: .public) \
+    brightness=\(brightnessController.level.map { "\($0)" } ?? "unsupported", privacy: .public)
+    """)
+
 let mediaKeyTap = MediaKeyTap { event in
     guard event.isPressed else { return }
 
@@ -30,8 +35,10 @@ let mediaKeyTap = MediaKeyTap { event in
     case .mute:
         // Ignore auto-repeat so holding the key doesn't flap the mute state.
         if !event.isRepeat { volumeController.toggleMute() }
-    case .brightnessUp, .brightnessDown:
-        break
+    case .brightnessUp:
+        brightnessController.adjust(increasing: true)
+    case .brightnessDown:
+        brightnessController.adjust(increasing: false)
     }
 }
 
