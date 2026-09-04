@@ -54,13 +54,17 @@ final class SettingsWindowController: NSWindowController {
         window.isReleasedWhenClosed = false
 
         super.init(window: window)
-        let content = makeContentView()
-        window.contentView = content
-        // Sized to the content rather than a guessed height, so there's no
-        // empty space left over at the bottom.
-        window.setContentSize(content.fittingSize)
-        window.center()
+        window.contentView = makeContentView()
+
+        updateChecker.onCheckCompleted = { [weak self] outcome in
+            self?.report(outcome)
+        }
+
+        // Refresh before sizing: it hides the permission button when access is
+        // already granted, and a window sized before that is left with the
+        // button's height as empty space at the bottom.
         refresh()
+        window.center()
     }
 
     @available(*, unavailable)
@@ -108,6 +112,31 @@ final class SettingsWindowController: NSWindowController {
             updateLabel.stringValue = "Version \(Self.currentVersion)"
             updateButton.title = "Check for Updates"
         }
+
+        fitWindow()
+    }
+
+    /// Resizes to fit, so hiding or showing a row never leaves a gap.
+    private func fitWindow() {
+        guard let content = window?.contentView else { return }
+        window?.setContentSize(content.fittingSize)
+    }
+
+    /// Says what a finished check found. Silence would leave the button's
+    /// "Checking…" text on screen with no resolution.
+    private func report(_ outcome: UpdateChecker.Outcome) {
+        switch outcome {
+        case .upToDate:
+            updateLabel.stringValue = "Version \(Self.currentVersion) is the latest."
+            updateButton.title = "Check for Updates"
+        case .updateAvailable(let release):
+            updateLabel.stringValue = "Version \(release.version) is available."
+            updateButton.title = "Open Release Page"
+        case .failed:
+            updateLabel.stringValue = "Couldn't check for updates."
+            updateButton.title = "Check for Updates"
+        }
+        fitWindow()
     }
 
     private static var currentVersion: String {
@@ -222,8 +251,12 @@ final class SettingsWindowController: NSWindowController {
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
+        // Even on all four sides.
         stack.edgeInsets = NSEdgeInsets(
-            top: 22, left: Self.contentInset, bottom: 18, right: Self.contentInset
+            top: Self.contentInset,
+            left: Self.contentInset,
+            bottom: Self.contentInset,
+            right: Self.contentInset
         )
         stack.translatesAutoresizingMaskIntoConstraints = false
 

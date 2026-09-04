@@ -16,8 +16,21 @@ final class UpdateChecker {
     /// Set when a newer release exists.
     private(set) var newerRelease: Release?
 
+    /// What a finished check found.
+    enum Outcome {
+        case upToDate
+        case updateAvailable(Release)
+        /// No network, rate limited, or no releases published yet.
+        case failed
+    }
+
     /// Called on the main actor when a newer release is found.
     var onUpdateFound: ((Release) -> Void)?
+
+    /// Called on the main actor when any check finishes, including when it
+    /// finds nothing. Without this a caller that shows "Checking…" has no way
+    /// to know it's over.
+    var onCheckCompleted: ((Outcome) -> Void)?
 
     private static let latestReleaseURL = URL(
         string: "https://api.github.com/repos/connorpodea/BetterHUD/releases/latest"
@@ -53,7 +66,7 @@ final class UpdateChecker {
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
 
         Task { [weak self] in
-            guard let release = await Self.fetch(request) else { return }
+            let release = await Self.fetch(request)
             await MainActor.run { self?.handle(release) }
         }
     }
@@ -77,14 +90,23 @@ final class UpdateChecker {
         return try? JSONDecoder().decode(LatestRelease.self, from: data)
     }
 
-    private func handle(_ release: LatestRelease) {
+    private func handle(_ release: LatestRelease?) {
+        guard let release else {
+            onCheckCompleted?(.failed)
+            return
+        }
+
         let latest = release.tagName.trimmingCharacters(in: CharacterSet(charactersIn: "v"))
         guard Self.isNewer(latest, than: currentVersion),
-              let page = URL(string: release.htmlUrl) else { return }
+              let page = URL(string: release.htmlUrl) else {
+            onCheckCompleted?(.upToDate)
+            return
+        }
 
         let found = Release(version: latest, page: page)
         newerRelease = found
         onUpdateFound?(found)
+        onCheckCompleted?(.updateAvailable(found))
     }
 
     /// Compares dotted version strings component by component, so 0.0.10 is
