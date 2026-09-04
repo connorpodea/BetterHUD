@@ -54,7 +54,11 @@ final class SettingsWindowController: NSWindowController {
         window.isReleasedWhenClosed = false
 
         super.init(window: window)
-        window.contentView = makeContentView()
+        let content = makeContentView()
+        window.contentView = content
+        // Sized to the content rather than a guessed height, so there's no
+        // empty space left over at the bottom.
+        window.setContentSize(content.fittingSize)
         window.center()
         refresh()
     }
@@ -189,7 +193,9 @@ final class SettingsWindowController: NSWindowController {
         ])
         grid.rowSpacing = 10
         grid.columnSpacing = 10
-        grid.column(at: 0).xPlacement = .trailing
+        // Leading, so the rows line up with the section headings above them
+        // rather than floating in the middle of the window.
+        grid.column(at: 0).xPlacement = .leading
 
         // One consistent control width, so the second column reads as a column.
         for control in [durationControl, opacityControl, feedbackControl] {
@@ -234,7 +240,7 @@ final class SettingsWindowController: NSWindowController {
             stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             stack.topAnchor.constraint(equalTo: container.topAnchor),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: container.bottomAnchor),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             icon.widthAnchor.constraint(equalToConstant: 52),
             icon.heightAnchor.constraint(equalToConstant: 52),
             blurb.widthAnchor.constraint(lessThanOrEqualToConstant: 340),
@@ -271,9 +277,7 @@ final class SettingsWindowController: NSWindowController {
     }
 
     private func label(_ text: String) -> NSTextField {
-        let field = NSTextField(labelWithString: text)
-        field.alignment = .right
-        return field
+        NSTextField(labelWithString: text)
     }
 
     private func sectionLabel(_ text: String) -> NSTextField {

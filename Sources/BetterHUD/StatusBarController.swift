@@ -335,32 +335,23 @@ private final class SectionHeaderView: NSView {
 /// the full width of the menu, so two of them can't share a line.
 @MainActor
 private final class MenuFooterView: NSView {
-    private let settingsButton = NSButton()
-    private let quitButton = NSButton()
-    private let onSettings: () -> Void
-    private let onQuit: () -> Void
+    private let settingsTile: FooterTile
+    private let quitTile: FooterTile
 
     private enum Metrics {
         /// Matches the inset AppKit gives a menu item's title.
         static let leadingInset: CGFloat = 18
         static let trailingInset: CGFloat = 14
-        static let height: CGFloat = 38
-        /// Grows the capsule beyond the text it contains.
-        static let tilePaddingX: CGFloat = 9
-        static let tilePaddingY: CGFloat = 4
-        static let gap: CGFloat = 12
+        static let height: CGFloat = 40
     }
 
     init(onSettings: @escaping () -> Void, onQuit: @escaping () -> Void) {
-        self.onSettings = onSettings
-        self.onQuit = onQuit
+        settingsTile = FooterTile(title: "Settings", onClick: onSettings)
+        quitTile = FooterTile(title: "Quit", onClick: onQuit)
         super.init(frame: .zero)
 
-        configure(settingsButton, title: "Settings", action: #selector(handleSettings))
-        configure(quitButton, title: "Quit", action: #selector(handleQuit))
-        addSubview(settingsButton)
-        addSubview(quitButton)
-
+        addSubview(settingsTile)
+        addSubview(quitTile)
         autoresizingMask = [.width]
         frame = NSRect(origin: .zero, size: intrinsicContentSize)
     }
@@ -368,40 +359,10 @@ private final class MenuFooterView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// `.inline` is the small gray capsule AppKit already draws for this, so
-    /// the tile is the system's rather than something hand-painted.
-    ///
-    /// The title color is `labelColor` rather than literal white: it resolves
-    /// to white in a dark menu, and stays readable if the menu is light.
-    private func configure(_ button: NSButton, title: String, action: Selector) {
-        button.bezelStyle = .inline
-        button.controlSize = .regular
-        button.attributedTitle = NSAttributedString(
-            string: title,
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 12, weight: .medium),
-                .foregroundColor: NSColor.labelColor,
-            ]
-        )
-        button.target = self
-        button.action = action
-        button.sizeToFit()
-    }
-
-    /// The button's own fitting size plus padding, so the capsule sits a little
-    /// wider and taller than the text inside it.
-    private func tileSize(for button: NSButton) -> NSSize {
-        let fitting = button.fittingSize
-        return NSSize(
-            width: fitting.width + Metrics.tilePaddingX * 2,
-            height: fitting.height + Metrics.tilePaddingY * 2
-        )
-    }
-
     override var intrinsicContentSize: NSSize {
         NSSize(
-            width: Metrics.leadingInset + tileSize(for: settingsButton).width + Metrics.gap
-                + tileSize(for: quitButton).width + Metrics.trailingInset,
+            width: Metrics.leadingInset + settingsTile.intrinsicContentSize.width + 12
+                + quitTile.intrinsicContentSize.width + Metrics.trailingInset,
             height: Metrics.height
         )
     }
@@ -409,23 +370,113 @@ private final class MenuFooterView: NSView {
     override func layout() {
         super.layout()
 
-        let settings = tileSize(for: settingsButton)
-        settingsButton.frame = NSRect(
+        let settingsSize = settingsTile.intrinsicContentSize
+        settingsTile.frame = NSRect(
             x: Metrics.leadingInset,
-            y: (bounds.height - settings.height) / 2,
-            width: settings.width,
-            height: settings.height
+            y: (bounds.height - settingsSize.height) / 2,
+            width: settingsSize.width,
+            height: settingsSize.height
         )
 
-        let quit = tileSize(for: quitButton)
-        quitButton.frame = NSRect(
-            x: bounds.maxX - Metrics.trailingInset - quit.width,
-            y: (bounds.height - quit.height) / 2,
-            width: quit.width,
-            height: quit.height
+        let quitSize = quitTile.intrinsicContentSize
+        quitTile.frame = NSRect(
+            x: bounds.maxX - Metrics.trailingInset - quitSize.width,
+            y: (bounds.height - quitSize.height) / 2,
+            width: quitSize.width,
+            height: quitSize.height
+        )
+    }
+}
+
+/// A rounded tile with a label, drawn rather than bezeled.
+///
+/// `NSButton` with `.inline` was the obvious choice, but that bezel style
+/// draws its own text color and sizes itself to its title, so neither white
+/// text nor extra padding survived. Drawing the tile means both are exact.
+@MainActor
+private final class FooterTile: NSView {
+    private let label = NSTextField(labelWithString: "")
+    private let onClick: () -> Void
+    private var isHovered = false
+
+    private enum Metrics {
+        static let paddingX: CGFloat = 12
+        static let paddingY: CGFloat = 6
+        static let cornerRadius: CGFloat = 7
+        /// Subtle on a dark menu, and a touch brighter under the pointer.
+        static let restingAlpha: CGFloat = 0.10
+        static let hoveredAlpha: CGFloat = 0.20
+    }
+
+    init(title: String, onClick: @escaping () -> Void) {
+        self.onClick = onClick
+        super.init(frame: .zero)
+
+        label.stringValue = title
+        label.font = .systemFont(ofSize: 12, weight: .medium)
+        label.textColor = .labelColor
+        addSubview(label)
+
+        wantsLayer = true
+        layer?.cornerRadius = Metrics.cornerRadius
+        layer?.cornerCurve = .continuous
+        updateFill()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override var intrinsicContentSize: NSSize {
+        let text = label.fittingSize
+        return NSSize(
+            width: text.width + Metrics.paddingX * 2,
+            height: text.height + Metrics.paddingY * 2
         )
     }
 
-    @objc private func handleSettings() { onSettings() }
-    @objc private func handleQuit() { onQuit() }
+    override func layout() {
+        super.layout()
+        let text = label.fittingSize
+        label.frame = NSRect(
+            x: (bounds.width - text.width) / 2,
+            y: (bounds.height - text.height) / 2,
+            width: text.width,
+            height: text.height
+        )
+    }
+
+    // MARK: - Interaction
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways],
+            owner: self
+        ))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        isHovered = true
+        updateFill()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHovered = false
+        updateFill()
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        // Only a click that ends inside the tile counts, matching how a button
+        // behaves when the pointer is dragged away before release.
+        let point = convert(event.locationInWindow, from: nil)
+        guard bounds.contains(point) else { return }
+        onClick()
+    }
+
+    private func updateFill() {
+        let alpha = isHovered ? Metrics.hoveredAlpha : Metrics.restingAlpha
+        layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(alpha).cgColor
+    }
 }
