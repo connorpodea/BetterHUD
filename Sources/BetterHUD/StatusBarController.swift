@@ -245,7 +245,10 @@ private final class MenuHeaderView: NSView {
         /// Space between the two lines of text.
         static let lineSpacing: CGFloat = 4
         /// Between the text and the icon.
-        static let iconGap: CGFloat = 8
+        static let iconGap: CGFloat = 11
+        /// Icon height relative to the two lines of text stacked, so it reads
+        /// slightly larger than them.
+        static let iconScale: CGFloat = 1.2
     }
 
     init() {
@@ -284,17 +287,22 @@ private final class MenuHeaderView: NSView {
         max(titleLabel.fittingSize.width, statusLabel.fittingSize.width)
     }
 
-    /// Height of both lines together. The icon is drawn at this size, so it
-    /// stands exactly as tall as the title and status line stacked.
+    /// Height of both lines together.
     private var textHeight: CGFloat {
         titleLabel.fittingSize.height + Metrics.lineSpacing + statusLabel.fittingSize.height
     }
 
+    /// Derived from the text, so the icon tracks the fonts rather than being a
+    /// fixed number that drifts out of proportion.
+    private var iconSize: CGFloat {
+        textHeight * Metrics.iconScale
+    }
+
     override var intrinsicContentSize: NSSize {
         NSSize(
-            width: Metrics.leadingInset + textWidth + Metrics.iconGap + textHeight
+            width: Metrics.leadingInset + textWidth + Metrics.iconGap + iconSize
                 + Metrics.trailingInset,
-            height: textHeight + Metrics.verticalPadding * 2
+            height: max(textHeight, iconSize) + Metrics.verticalPadding * 2
         )
     }
 
@@ -313,7 +321,6 @@ private final class MenuHeaderView: NSView {
 
         // Positioned next to the text rather than pinned to the trailing
         // edge, so it stays beside the title however wide AppKit makes the row.
-        let iconSize = textHeight
         iconView.frame = NSRect(
             x: Metrics.leadingInset + textWidth + Metrics.iconGap,
             y: bounds.midY - iconSize / 2,
