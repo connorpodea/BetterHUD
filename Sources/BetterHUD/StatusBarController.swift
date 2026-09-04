@@ -89,7 +89,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         ] {
             item.target = self
             item.action = action
-            item.attributedTitle = Self.optionTitle(item.title)
+            Self.styleOption(item)
             menu.addItem(item)
         }
 
@@ -102,7 +102,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         addSection(to: menu, titled: "Startup")
         launchAtLoginItem.target = self
         launchAtLoginItem.action = #selector(toggleLaunchAtLogin)
-        launchAtLoginItem.attributedTitle = Self.optionTitle(launchAtLoginItem.title)
+        Self.styleOption(launchAtLoginItem)
         menu.addItem(launchAtLoginItem)
 
         menu.addItem(.separator())
@@ -110,7 +110,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         // standard action with a symbol, which shifts the title into a
         // different column from every other row.
         let quit = NSMenuItem(title: "Quit BetterHUD", action: #selector(quit), keyEquivalent: "q")
-        quit.attributedTitle = Self.optionTitle(quit.title)
+        Self.styleOption(quit)
         quit.target = self
         menu.addItem(quit)
 
@@ -137,25 +137,33 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private func item(title: String, tag: Int, action: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-        item.attributedTitle = Self.optionTitle(title)
+        Self.styleOption(item)
         item.tag = tag
         item.target = self
         return item
     }
 
-    /// Options are dimmer than the headings above them, so a section reads as
-    /// a label followed by its choices.
+    /// Draws a row dimmer than the heading above it, so a section reads as a
+    /// label followed by its choices.
+    ///
+    /// The plain title is cleared afterwards, because type-select matches typed
+    /// characters against `title`: with it empty, pressing "u" no longer jumps
+    /// to Upper. `attributedTitle` still supplies the text that's drawn, and
+    /// the accessibility title keeps the row readable to VoiceOver.
     ///
     /// One tradeoff: an explicit color is kept even while a row is highlighted,
     /// where AppKit would normally switch the text to white.
-    static func optionTitle(_ text: String) -> NSAttributedString {
-        NSAttributedString(
+    static func styleOption(_ item: NSMenuItem) {
+        let text = item.title
+        item.attributedTitle = NSAttributedString(
             string: text,
             attributes: [
                 .font: NSFont.menuFont(ofSize: 0),
                 .foregroundColor: NSColor.secondaryLabelColor,
             ]
         )
+        item.title = ""
+        item.setAccessibilityTitle(text)
     }
 
     /// A divider plus a heading, so the groups read as groups.
@@ -242,7 +250,7 @@ private final class MenuHeaderView: NSView {
         /// Space between the two lines of text.
         static let lineSpacing: CGFloat = 4
         /// Space between the text and the icon.
-        static let iconGap: CGFloat = 15
+        static let iconGap: CGFloat = 19
     }
 
     init() {
