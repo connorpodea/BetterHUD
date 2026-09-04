@@ -81,7 +81,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         ] {
             item.target = self
             item.action = action
-            item.indentationLevel = 1
             menu.addItem(item)
         }
 
@@ -91,7 +90,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
         feedbackItems.forEach(menu.addItem)
 
-        menu.addItem(.separator())
+        addSection(to: menu, titled: "Startup")
         launchAtLoginItem.target = self
         launchAtLoginItem.action = #selector(toggleLaunchAtLogin)
         menu.addItem(launchAtLoginItem)
@@ -112,8 +111,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// observers running while nobody is looking.
     func menuWillOpen(_ menu: NSMenu) {
         statusLine.title = isInterceptingKeys()
-            ? "Replacing the system HUD"
-            : "Needs Accessibility permission"
+            ? "BetterHUD — Replacing the System HUD"
+            : "BetterHUD — Needs Accessibility Permission"
 
         check(placementItems, at: Settings.Placement.allCases.firstIndex(of: settings.placement))
         check(durationItems, at: Settings.durationChoices.firstIndex(of: settings.visibleDuration))
@@ -130,12 +129,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.tag = tag
         item.target = self
-        item.indentationLevel = 1
         return item
     }
 
     /// A separator plus a small, dimmed heading, so the sections read as
-    /// groups rather than one long list.
+    /// groups rather than one long list. Headings are the only unchecked rows,
+    /// which keeps every checkmark in a single column.
     private func addSection(to menu: NSMenu, titled title: String) {
         menu.addItem(.separator())
         let header = NSMenuItem()
@@ -159,27 +158,45 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     // MARK: - Actions
 
+    /// AppKit always dismisses a menu when an item is clicked, so changing
+    /// several settings would mean reopening the menu each time. Reopening it
+    /// immediately keeps it up until the user clicks away.
+    ///
+    /// The alternative — custom views for every row — would mean drawing menu
+    /// rows by hand and losing the system's own menu styling.
+    private func reopenMenu() {
+        DispatchQueue.main.async { [weak self] in
+            self?.statusItem.button?.performClick(nil)
+        }
+    }
+
     @objc private func changePlacement(_ sender: NSMenuItem) {
         settings.placement = Settings.Placement.allCases[sender.tag]
+        reopenMenu()
     }
 
     @objc private func changeDuration(_ sender: NSMenuItem) {
         settings.visibleDuration = Settings.durationChoices[sender.tag]
+        reopenMenu()
     }
 
     @objc private func changeFeedbackMode(_ sender: NSMenuItem) {
         settings.feedbackMode = Settings.FeedbackMode.allCases[sender.tag]
+        reopenMenu()
     }
 
     @objc private func toggleVolumeKeys() {
         settings.handlesVolumeKeys.toggle()
+        reopenMenu()
     }
 
     @objc private func toggleBrightnessKeys() {
         settings.handlesBrightnessKeys.toggle()
+        reopenMenu()
     }
 
     @objc private func toggleLaunchAtLogin() {
         LaunchAtLogin.setEnabled(!LaunchAtLogin.isEnabled)
+        reopenMenu()
     }
 }
