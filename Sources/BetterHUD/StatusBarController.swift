@@ -173,7 +173,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                 .foregroundColor: NSColor.labelColor,
             ]
         )
-        header.isEnabled = false
+        // Enabled purely so it isn't dimmed: AppKit grays out a disabled item
+        // whatever color its attributed title asks for. It has no action, so
+        // clicking it does nothing beyond closing the menu.
+        header.isEnabled = true
         menu.addItem(header)
     }
 
