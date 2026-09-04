@@ -241,8 +241,8 @@ private final class MenuHeaderView: NSView {
         static let verticalPadding: CGFloat = 7
         /// Space between the two lines of text.
         static let lineSpacing: CGFloat = 4
-        /// Minimum space between the text and the icon.
-        static let iconGap: CGFloat = 11
+        /// Space between the text and the icon.
+        static let iconGap: CGFloat = 15
     }
 
     init() {
