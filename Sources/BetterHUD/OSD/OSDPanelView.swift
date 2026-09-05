@@ -102,7 +102,8 @@ final class OSDPanelView: NSView {
 
     private func setUpIcon() {
         iconView.imageScaling = .scaleProportionallyUpOrDown
-        iconView.contentTintColor = .white
+        // No contentTintColor: the glyphs arrive already white, so nothing is
+        // tinted at draw time.
         iconView.frame = NSRect(
             x: Metrics.canvasInset,
             y: Metrics.canvasInset,

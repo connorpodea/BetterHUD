@@ -49,11 +49,33 @@ final class OSDGlyphProvider {
     func image(for glyph: OSDGlyph) -> NSImage? {
         if let cached = cache[glyph] { return cached }
 
-        let image = systemImage(for: glyph) ?? fallbackImage(for: glyph)
-        // Template rendering lets the panel tint the artwork white.
-        image?.isTemplate = true
-        image?.size = NSSize(width: Self.canvasSize, height: Self.canvasSize)
-        cache[glyph] = image
+        guard let artwork = systemImage(for: glyph) ?? fallbackImage(for: glyph) else {
+            return nil
+        }
+        artwork.size = NSSize(width: Self.canvasSize, height: Self.canvasSize)
+
+        let white = Self.whitened(artwork)
+        cache[glyph] = white
+        return white
+    }
+
+    /// Bakes white into the artwork instead of leaving it as a template image
+    /// for the view to tint.
+    ///
+    /// A template image is black pixels plus alpha, and AppKit applies the tint
+    /// when drawing. If a frame is composited before that happens, which is
+    /// most likely on the first frame while the window fades in, the glyph
+    /// draws black on a dark panel and looks like it disappeared. Pre-tinting
+    /// removes that possibility, and saves a tint pass on every draw.
+    private static func whitened(_ artwork: NSImage) -> NSImage {
+        let size = artwork.size
+        let image = NSImage(size: size)
+        image.lockFocus()
+        artwork.draw(in: NSRect(origin: .zero, size: size))
+        NSColor.white.set()
+        NSRect(origin: .zero, size: size).fill(using: .sourceAtop)
+        image.unlockFocus()
+        image.isTemplate = false
         return image
     }
 
