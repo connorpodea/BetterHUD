@@ -42,10 +42,12 @@ final class OSDController {
         window.panel.setBackdropOpacity(settings.backdropOpacity)
         window.panel.update(icon: icon, level: level)
 
+        // Position only when it's hidden, so a visible HUD doesn't jump if the
+        // pointer moves to another display mid-show.
         if !window.isVisible {
             window.position(for: settings.placement)
-            window.orderFrontRegardless()
         }
+        window.presentOnActiveSpace()
 
         // Appears at once rather than fading in, matching the HUD macOS used
         // to draw. A fade meant the glyph spent its first frames translucent,

@@ -37,6 +37,18 @@ final class OSDWindow: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
+    /// Brings the HUD up on whichever desktop is in front.
+    ///
+    /// The collection behavior is reapplied rather than trusted from `init`,
+    /// and the window is ordered front on every show, not just when it's
+    /// hidden. Skipping the order when it was already on screen left it
+    /// asserted on the desktop where it last appeared, so switching spaces
+    /// meant the keys still worked while the HUD stayed behind.
+    func presentOnActiveSpace() {
+        collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+        orderFrontRegardless()
+    }
+
     /// Inset used by the upper and lower placements. The lower one matches
     /// where macOS used to draw its own HUD.
     private static let edgeOffset: CGFloat = 140
