@@ -149,9 +149,13 @@ final class SettingsWindowController: NSWindowController {
     /// inside it, is what puts each control's middle segment exactly on the
     /// window's centerline. Left to size themselves, "0%" is narrower than
     /// "100%" and the middle segment drifts off center.
-    private static let controlWidth: CGFloat = 250
+    private static let controlWidth: CGFloat = 230
     private static let contentInset: CGFloat = 24
-    private static let contentWidth: CGFloat = 500
+    /// Sized to the widest thing in the window rather than a round number.
+    /// The controls are centered, so this has to leave room for the longest
+    /// row label ("Volume Click:" at 82pt) on the left of a centered control:
+    /// (430 - 230) / 2 = 100pt, which clears it with room to spare.
+    private static let contentWidth: CGFloat = 430
 
     private func makeContentView() -> NSView {
         let icon = NSImageView()
@@ -269,8 +273,9 @@ final class SettingsWindowController: NSWindowController {
             stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             icon.widthAnchor.constraint(equalToConstant: 52),
             icon.heightAnchor.constraint(equalToConstant: 52),
-            blurb.widthAnchor.constraint(lessThanOrEqualToConstant: 380),
-            permissionLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 420),
+            // Both sit beside an icon, so they get the content width minus it.
+            blurb.widthAnchor.constraint(lessThanOrEqualToConstant: 360),
+            permissionLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 400),
             footer.widthAnchor.constraint(equalToConstant: Self.contentWidth),
         ])
         return container
