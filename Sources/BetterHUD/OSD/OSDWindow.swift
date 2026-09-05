@@ -18,7 +18,7 @@ final class OSDWindow: NSPanel {
         isFloatingPanel = true
         // Above full-screen apps and the menu bar, matching the native HUD.
         level = .screenSaver
-        collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+        collectionBehavior = Self.desiredCollectionBehavior
 
         isOpaque = false
         backgroundColor = .clear
@@ -37,15 +37,26 @@ final class OSDWindow: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
+    /// Present on every desktop, stay put during Exposé, stay out of window
+    /// cycling, and be allowed over full-screen apps.
+    private static let desiredCollectionBehavior: NSWindow.CollectionBehavior =
+        [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+
     /// Brings the HUD up on whichever desktop is in front.
     ///
-    /// The collection behavior is reapplied rather than trusted from `init`,
-    /// and the window is ordered front on every show, not just when it's
-    /// hidden. Skipping the order when it was already on screen left it
+    /// Ordering front happens on every show, not just when the window is
+    /// hidden: skipping it while the HUD was already on screen left it
     /// asserted on the desktop where it last appeared, so switching spaces
     /// meant the keys still worked while the HUD stayed behind.
+    ///
+    /// The collection behavior is only written when it has actually drifted.
+    /// Assigning it makes the window server reconfigure which spaces the
+    /// window belongs to, and doing that on every key press made the HUD
+    /// flicker while a desktop switch was animating.
     func presentOnActiveSpace() {
-        collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+        if collectionBehavior != Self.desiredCollectionBehavior {
+            collectionBehavior = Self.desiredCollectionBehavior
+        }
         orderFrontRegardless()
     }
 
