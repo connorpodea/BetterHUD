@@ -9,7 +9,6 @@ import AppKit
 @MainActor
 final class OSDController {
     private enum Timing {
-        static let fadeIn: TimeInterval = 0.08
         static let fadeOut: TimeInterval = 0.4
     }
 
@@ -48,11 +47,14 @@ final class OSDController {
             window.orderFrontRegardless()
         }
 
-        // Already fully visible on a repeat press: skip the animation entirely
-        // and just extend the on-screen time.
+        // Appears at once rather than fading in, matching the HUD macOS used
+        // to draw. A fade meant the glyph spent its first frames translucent,
+        // which is invisible against a dim screen and read as the icon showing
+        // up late. Zero duration through the animator rather than assigning
+        // alpha directly, so a fade-out still in flight is cancelled.
         if window.alphaValue < 1 {
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = Timing.fadeIn
+                context.duration = 0
                 window.animator().alphaValue = 1
             }
         }
