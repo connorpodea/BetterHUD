@@ -35,13 +35,26 @@ extension MediaKeyEvent {
     init?(cgEvent: CGEvent) {
         guard let event = NSEvent(cgEvent: cgEvent),
               event.subtype.rawValue == Self.auxControlButtonsSubtype else { return nil }
+        self.init(data1: event.data1)
+    }
 
-        let data1 = event.data1
+    /// Decodes the payload an aux-control event packs into `data1`: the key
+    /// code in the high 16 bits, and the key's flags in the low 16.
+    ///
+    /// ```
+    /// bits 31-16   which key (NX_KEYTYPE_SOUND_UP = 0, MUTE = 7, ...)
+    /// bits 15-8    0x0A means key down; anything else is key up
+    /// bit 0        set while the key is auto-repeating
+    /// ```
+    ///
+    /// Split out from the initializer above so the layout — the part that is
+    /// documented nowhere and has every opportunity to be subtly wrong — can be
+    /// tested without conjuring a real system event.
+    init?(data1: Int) {
         guard let key = MediaKey(rawValue: (data1 & 0xFFFF_0000) >> 16) else { return nil }
 
         let keyFlags = data1 & 0x0000_FFFF
         self.key = key
-        // 0x0A in the high byte of the flags means key down; anything else is key up.
         self.isPressed = ((keyFlags & 0xFF00) >> 8) == 0x0A
         self.isRepeat = (keyFlags & 0x1) == 0x1
     }

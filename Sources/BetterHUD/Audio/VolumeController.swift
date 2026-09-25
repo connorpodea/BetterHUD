@@ -8,10 +8,6 @@ import Foundation
 /// when it changes, so a key press never pays for a device lookup.
 @MainActor
 final class VolumeController {
-    /// Apple's hardware keys move the volume in sixteenths.
-    static let stepCount: Float = 16
-    private static let step: Float = 1 / stepCount
-
     private var cachedDeviceID: AudioDeviceID?
 
     init() {
@@ -70,12 +66,7 @@ final class VolumeController {
             setMuted(false)
         }
 
-        // Snap to the nearest step, then move one. Rounding toward the
-        // direction of travel would stall: the hardware reads a level back as
-        // 8.999999 rather than 9, so rounding down would recompute the step we
-        // just set and never advance.
-        let steps = (current * Self.stepCount).rounded()
-        let target = (steps + (increasing ? 1 : -1)) * Self.step
+        let target = LevelStepper.step(from: current, increasing: increasing)
         let clamped = min(max(target, 0), 1)
 
         setLevel(clamped)

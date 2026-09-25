@@ -8,10 +8,6 @@ import CoreGraphics
 /// DDC/CI, which is deliberately out of scope.
 @MainActor
 final class BrightnessController {
-    /// Matches the volume keys' granularity so both HUDs read the same.
-    static let stepCount: Float = 16
-    private static let step: Float = 1 / stepCount
-
     private let bridge: DisplayServicesBridge?
     private var cachedDisplayID: CGDirectDisplayID?
 
@@ -43,13 +39,7 @@ final class BrightnessController {
     /// presses land on clean stops.
     func adjust(increasing: Bool) {
         guard let current = level else { return }
-        // Snap to the nearest step, then move one. Rounding toward the
-        // direction of travel would stall: the hardware reads a level back as
-        // 12.04 rather than a clean step, so rounding could recompute the step
-        // we just set and never advance.
-        let steps = (current * Self.stepCount).rounded()
-        let target = (steps + (increasing ? 1 : -1)) * Self.step
-        setLevel(target)
+        setLevel(LevelStepper.step(from: current, increasing: increasing))
     }
 
     func setLevel(_ newLevel: Float) {
