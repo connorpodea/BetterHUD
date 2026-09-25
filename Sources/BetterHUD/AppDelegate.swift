@@ -77,6 +77,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch event.key {
         case .soundUp, .soundDown, .mute:
             guard settings.handlesVolumeKeys else { return false }
+            // Some outputs expose no volume control at all — a few HDMI and
+            // Bluetooth devices — leaving nothing to set and no level to draw,
+            // so up and down go back to macOS. Mute still does real work on
+            // such a device, so it stays ours.
+            guard event.key == .mute || volumeController.isAdjustable else { return false }
             // Key-up is consumed without acting, so no fragment of the press
             // reaches the native HUD.
             guard event.isPressed else { return true }
