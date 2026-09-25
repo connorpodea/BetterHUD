@@ -37,10 +37,15 @@ final class OSDWindow: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
-    /// Present on every desktop, stay put during Exposé, stay out of window
-    /// cycling, and be allowed over full-screen apps.
+    /// Present on every desktop, out of window cycling, and allowed over
+    /// full-screen apps.
+    ///
+    /// Without `.stationary`, deliberately. That behavior tells a window not to
+    /// move with the spaces, and during an interactive swipe between desktops
+    /// the compositor drops it out of the animation and puts it back when the
+    /// transition settles, which reads as the HUD cutting out and returning.
     private static let desiredCollectionBehavior: NSWindow.CollectionBehavior =
-        [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+        [.canJoinAllSpaces, .ignoresCycle, .fullScreenAuxiliary]
 
     /// Brings the HUD up on whichever desktop is in front.
     ///
