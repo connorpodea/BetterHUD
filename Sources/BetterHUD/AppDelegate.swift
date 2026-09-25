@@ -98,6 +98,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         case .brightnessUp, .brightnessDown:
             guard settings.handlesBrightnessKeys else { return false }
+            // Nothing we could change: no built-in panel, or the private
+            // framework is gone. Hand the key back rather than swallowing it to
+            // no effect, which would leave the user with a dead key. Checked
+            // before the key-up guard so both halves of the press pass through
+            // together.
+            guard brightnessController.isSupported else { return false }
             guard event.isPressed else { return true }
 
             brightnessController.adjust(increasing: event.key == .brightnessUp)
