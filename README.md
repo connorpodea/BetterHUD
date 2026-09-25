@@ -1,6 +1,6 @@
 # BetterHUD
 
-**Version 0.0.2 (September 4, 2026)**
+**Version 0.0.3 (September 25, 2026)**
 
 macOS 26 changed the volume and brightness HUD to a small indicator in the
 corner of the screen. I liked the old centered one better, so I wrote this to
@@ -138,6 +138,17 @@ Use `BETTERHUD_SIGN_IDENTITY="Your Certificate Name"` for your own identity, and
 `BETTERHUD_INSTALL_DIR` to change where the app gets built.
 
 ## Version history
+
+### 0.0.3 (September 25, 2026)
+
+* Fixed the brightness keys doing nothing on a Mac with no built in display.
+  They were being swallowed with nothing to change, so now they go back to
+  macOS and work normally
+* Fixed the same thing for volume up and down on an output that has no volume
+  control
+* Fixed the HUD blinking off and on while swiping between desktops
+* Added tests for decoding a key press, the 1/16 stepping math, and comparing
+  release versions
 
 ### 0.0.2 (September 4, 2026)
 
