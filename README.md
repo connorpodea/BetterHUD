@@ -71,8 +71,10 @@ Click the menu bar item and pick Settings.
 | Open at Login | On or off |
 
 If you turn off one of the key types, those keys go back to working normally,
-including the macOS indicator. The app only swallows a key press it actually
-did something with.
+including the macOS indicator. The same happens when there's nothing for
+BetterHUD to change: a Mac with no built in display keeps its normal brightness
+keys, and an output with no volume control keeps its normal volume keys, rather
+than having a key swallowed to no effect.
 
 ## How it works
 
@@ -116,8 +118,14 @@ redistributed. If those files ever disappear, the HUD falls back to SF Symbols.
 ```sh
 swift build -c release          # just the binary
 ./Scripts/build-app.sh          # builds and signs BetterHUD.app
+./Scripts/test.sh               # runs the tests
 swift Scripts/make-icons.swift  # regenerates the app icon
 ```
+
+The tests cover the parts that don't need hardware: how a key press is decoded
+out of the raw event, the 1/16 stepping math, and comparing release versions.
+Use the script rather than `swift test` directly, it passes the flags
+swift-testing needs when you don't have full Xcode installed.
 
 A copy you build yourself isn't quarantined, so you can skip the Gatekeeper
 step.
