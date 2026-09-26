@@ -141,14 +141,12 @@ Use `BETTERHUD_SIGN_IDENTITY="Your Certificate Name"` for your own identity, and
 
 ### 0.0.3 (September 25, 2026)
 
-* Fixed the brightness keys doing nothing on a Mac with no built in display.
-  They were being swallowed with nothing to change, so now they go back to
-  macOS and work normally
-* Fixed the same thing for volume up and down on an output that has no volume
+* Fixed brightness keys doing nothing on a Mac with no built in display. They
+  go back to macOS now instead of being swallowed
+* Fixed the same thing for volume up and down on an output with no volume
   control
-* Fixed the HUD blinking off and on while swiping between desktops
-* Added tests for decoding a key press, the 1/16 stepping math, and comparing
-  release versions
+* Fixed the HUD blinking while swiping between desktops
+* Added tests for key decoding, the stepping math, and version comparison
 
 ### 0.0.2 (September 4, 2026)
 
